@@ -1,7 +1,9 @@
 import type { Context, MiddlewareFn } from "grammy";
 import { logger } from "../lib/logger";
 
-export const requireTargetUsername = (targetUsername: string): MiddlewareFn<Context> => {
+export const requireTargetUsername = <C extends Context>(
+  targetUsername: string,
+): MiddlewareFn<C> => {
   return async (ctx, next) => {
     const incomingUsername = ctx.from?.username;
     if (incomingUsername !== targetUsername) {

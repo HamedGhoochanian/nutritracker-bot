@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import type { UserFromGetMe } from "grammy/types";
-import { createBot } from "../../bot";
+import { createBot } from "../../src/bot";
 
 type SavedProduct = {
   productId: string;
@@ -39,7 +39,7 @@ const buildMessageUpdate = (text: string, username = "allowed_user") => {
       text,
       entities: [{ offset: 0, length: commandEntityLength, type: "bot_command" as const }],
     },
-  } as const;
+  };
 };
 
 const setTestBotInfo = (bot: ReturnType<typeof createBot>) => {
@@ -53,6 +53,8 @@ const setTestBotInfo = (bot: ReturnType<typeof createBot>) => {
     supports_inline_queries: false,
   } as UserFromGetMe;
 };
+
+type BotUpdate = Parameters<ReturnType<typeof createBot>["handleUpdate"]>[0];
 
 describe("bot command handlers", () => {
   it("handles /say_name success and saves product", async () => {
@@ -101,12 +103,12 @@ describe("bot command handlers", () => {
             },
             text: String((payload as { text?: string }).text ?? ""),
           },
-        } as any;
+        } as unknown as Awaited<ReturnType<typeof prev>>;
       }
       return prev(method, payload);
     });
 
-    await bot.handleUpdate(buildMessageUpdate("/say_name 737628064502") as any);
+    await bot.handleUpdate(buildMessageUpdate("/say_name 737628064502") as unknown as BotUpdate);
 
     expect(savedProducts.length).toBe(1);
     expect(savedProducts[0]?.productId).toBe("737628064502");
@@ -154,15 +156,17 @@ describe("bot command handlers", () => {
             },
             text: String((payload as { text?: string }).text ?? ""),
           },
-        } as any;
+        } as unknown as Awaited<ReturnType<typeof prev>>;
       }
       return prev(method, payload);
     });
 
-    await bot.handleUpdate(buildMessageUpdate("/say_name") as any);
+    await bot.handleUpdate(buildMessageUpdate("/say_name") as unknown as BotUpdate);
 
     expect(savedProducts.length).toBe(0);
-    expect(sentTexts.some((text) => text.includes("Send a product id after the command"))).toBeTrue();
+    expect(
+      sentTexts.some((text) => text.includes("Send a product id after the command")),
+    ).toBeTrue();
   });
 
   it("blocks commands for non-target username", async () => {
@@ -196,7 +200,9 @@ describe("bot command handlers", () => {
       return prev(method, payload);
     });
 
-    await bot.handleUpdate(buildMessageUpdate("/say_name 737628064502", "intruder") as any);
+    await bot.handleUpdate(
+      buildMessageUpdate("/say_name 737628064502", "intruder") as unknown as BotUpdate,
+    );
 
     expect(savedProducts.length).toBe(0);
     expect(sentTexts.length).toBe(0);

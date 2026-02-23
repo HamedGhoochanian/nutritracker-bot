@@ -1,1 +1,1 @@
-export interface SessionData {}
+export type SessionData = Record<string, never>;

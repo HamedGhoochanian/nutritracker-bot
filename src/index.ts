@@ -1,6 +1,5 @@
-import { logger } from "./lib/logger";
-import { BotRepository } from "./lib/repositories/botRepository";
-import { createBot } from "./bot";
+import { BotRepository } from "../lib/repositories/botRepository";
+import { createBot, startBot } from "./bot";
 
 const token = process.env.BOT_TOKEN;
 const targetUsername = process.env.TARGET_USERNAME?.replace(/^@/, "");
@@ -16,6 +15,4 @@ if (!targetUsername) {
 const repository = await BotRepository.create("db.json");
 const bot = createBot({ token, targetUsername, repository });
 
-logger.info({ event: "bot.starting" });
-await bot.start();
-logger.info({ event: "bot.started" });
+await startBot(bot);
