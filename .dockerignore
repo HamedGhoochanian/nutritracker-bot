@@ -1,0 +1,11 @@
+.git
+.github
+node_modules
+tests
+downloads
+db.json
+.env
+.env.*
+README.md
+AGENTS.md
+workflows
