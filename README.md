@@ -1,5 +1,5 @@
 # nutritracker
-
+This is telegram bot for tracking your macros, I wanted a simple and mostly text based tracker that I could use everywhere, tailored to my personal needs and right now it's in super mega early stage.
 To install dependencies:
 
 ```bash

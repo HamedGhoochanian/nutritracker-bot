@@ -1,5 +1,4 @@
 import { Bot, session } from "grammy";
-import path from "node:path";
 import { BarcodeReader } from "../lib/barcode";
 import { logger } from "../lib/logger";
 import { OpenFoodFactsClient } from "../lib/openfoodfacts";
@@ -11,7 +10,7 @@ import type {
   BotRepositoryLike,
   OpenFoodFactsClientLike,
 } from "./types/dependencies";
-import type { SessionData } from "./types/session";
+import { initialSessionData } from "./types/session";
 
 export type CreateBotDeps = {
   token: string;
@@ -19,7 +18,6 @@ export type CreateBotDeps = {
   repository: BotRepositoryLike;
   offClient?: OpenFoodFactsClientLike;
   barcodeReader?: BarcodeReaderLike;
-  imageSaveDir?: string;
 };
 
 export const createBot = ({
@@ -28,17 +26,16 @@ export const createBot = ({
   repository,
   offClient = new OpenFoodFactsClient({ baseUrl: "https://world.openfoodfacts.net" }),
   barcodeReader = new BarcodeReader(),
-  imageSaveDir = path.resolve("downloads"),
 }: CreateBotDeps): Bot<MyContext> => {
   const bot = new Bot<MyContext>(token);
 
   bot.use(
     session({
-      initial: (): SessionData => ({}),
+      initial: initialSessionData,
     }),
   );
   bot.use(requireTargetUsername(targetUsername));
-  bot.use(createAllComposers({ token, imageSaveDir, repository, offClient, barcodeReader }));
+  bot.use(createAllComposers({ token, repository, offClient, barcodeReader }));
 
   return bot;
 };

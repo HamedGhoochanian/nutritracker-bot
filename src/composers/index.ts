@@ -6,12 +6,10 @@ import type {
   OpenFoodFactsClientLike,
 } from "../types/dependencies";
 import { createMessageLoggerComposer } from "./messageLogger";
-import { createPicSaveComposer } from "./picSave";
-import { createSayNameComposer } from "./sayName";
+import { createSubmitItemComposer } from "./itemManager";
 
 type AllComposersDeps = {
   token: string;
-  imageSaveDir: string;
   repository: BotRepositoryLike;
   offClient: OpenFoodFactsClientLike;
   barcodeReader: BarcodeReaderLike;
@@ -19,17 +17,13 @@ type AllComposersDeps = {
 
 export const createAllComposers = ({
   token,
-  imageSaveDir,
   repository,
   offClient,
   barcodeReader,
 }: AllComposersDeps): Composer<MyContext> => {
   const composer = new Composer<MyContext>();
 
-  composer.use(
-    createPicSaveComposer({ token, imageSaveDir, repository, offClient, barcodeReader }),
-  );
-  composer.use(createSayNameComposer({ repository, offClient }));
+  composer.use(createSubmitItemComposer({ token, repository, offClient, barcodeReader }));
   composer.use(createMessageLoggerComposer({ repository }));
 
   return composer;
