@@ -2,18 +2,25 @@
 
 ## What this project is
 
-NutriTracker is a Bun + TypeScript Telegram bot backend for quick food product lookup.
+NutriTracker is a Bun + TypeScript Telegram bot backend focused on personal food-item tracking.
 
 At a high level, the bot:
 
 1. Receives Telegram updates.
 2. Restricts access to a single allowed username.
-3. Supports `/say_name <barcode>` product lookup via Open Food Facts.
-4. Supports `pic_save` photo flow to detect a barcode from an image and fetch product data.
-5. Logs selected inbound messages to local JSON storage.
-6. Stores successful product lookups locally.
+3. Manages item workflows through command handlers.
+4. Looks up product data from Open Food Facts.
+5. Persists item and message data in local JSON storage.
 
-This is a backend-only project. There is no web frontend in the repository.
+This is a backend-only project. There is no web frontend in this repository.
+
+## Where to find user flows
+
+User-facing workflow specs live in the `workflows/` directory.
+
+- Primary items workflow file: `workflows/items.md`
+
+When implementing or changing bot behavior, check `workflows/` first.
 
 ## Main technology stack
 
@@ -53,22 +60,29 @@ The app bootstraps from `src/index.ts` and composes the bot in `src/bot.ts`.
 
 ### Composer handlers
 
-- `src/composers/sayName.ts`
-  - Handles `/say_name <productId>`.
-  - Fetches product details from Open Food Facts.
-  - Saves successful lookups in the repository.
-
-- `src/composers/picSave.ts`
-  - Handles messages matching `pic_save`.
-  - Downloads the largest attached photo from Telegram.
-  - Tries barcode detection, product lookup, and persistence.
-  - Saves the image file to `downloads/`.
+- `src/composers/itemManager.ts`
+  - Handles item flows:
+    - `/item_submit`
+    - `/item_list [range]`
+    - `/item_delete <barcode or alias>`
+    - `/item_update <alias>`
+  - Supports barcode extraction from text or photo.
+  - Fetches product data from Open Food Facts.
+  - Persists created/updated/deleted item records via repository methods.
+  - Uses session state for multi-step submit/update flows.
 
 - `src/composers/messageLogger.ts`
-  - Logs message metadata to `db.json` for handled `message` updates that reach this composer.
+  - Logs message metadata to `db.json` for `message` updates that reach this composer.
 
 - `src/composers/index.ts`
-  - Wires all composers in order with dependency injection.
+  - Wires composers with dependency injection.
+
+### Session model
+
+- `src/types/session.ts`
+  - Defines submit flow state enum and mode enum.
+  - Tracks pending item data while awaiting alias input.
+  - Initializes default session state.
 
 ### Barcode domain
 
@@ -91,7 +105,8 @@ The app bootstraps from `src/index.ts` and composes the bot in `src/bot.ts`.
   - Manages read/write operations to local JSON storage.
   - Persists:
     - message metadata
-    - product lookup records
+    - submitted item records (barcode, alias, nutrition snapshot, metadata)
+  - Supports listing, alias-first delete, lookup-by-alias, and index-based update.
 
 ### Logging
 
@@ -101,25 +116,32 @@ The app bootstraps from `src/index.ts` and composes the bot in `src/bot.ts`.
 
 ## Data flow overview
 
-### `/say_name` flow
+### Item submit flow (`/item_submit`)
 
-1. User sends `/say_name <barcode>`.
-2. Username middleware validates access.
-3. Bot requests product fields from Open Food Facts.
-4. Product display name is selected from available fields.
-5. Product lookup is stored in `db.json`.
-6. Bot replies with product name (and brand when available).
+1. User starts submit flow.
+2. User sends photo or text containing barcode.
+3. Bot resolves barcode and fetches product from Open Food Facts.
+4. Bot asks for alias (or `skip`).
+5. Bot saves submitted item with nutrition facts.
 
-### `pic_save` flow
+### Item list flow (`/item_list [range]`)
 
-1. User sends a `pic_save` message with a photo.
-2. Username middleware validates access.
-3. Bot downloads the photo from Telegram file API.
-4. Barcode reader extracts a likely barcode.
-5. Bot resolves product name from Open Food Facts.
-6. Product lookup is stored in `db.json` when found.
-7. Image is written under `downloads/`.
-8. Bot replies with result and saved file path.
+1. User requests items with optional range.
+2. Default range is `1-10` (1-based) when omitted.
+3. Bot replies with: barcode, name, alias, protein, calories.
+
+### Item delete flow (`/item_delete <barcode or alias>`)
+
+1. User provides alias or barcode.
+2. Bot deletes by alias first, then barcode.
+3. Bot replies with deleted item summary or not-found message.
+
+### Item update flow (`/item_update <alias>`)
+
+1. User provides alias.
+2. If alias not found, bot replies with error and ends flow.
+3. If found, bot runs submit-style flow to collect replacement product.
+4. Bot updates the existing item record.
 
 ### Message logging flow
 
@@ -138,7 +160,7 @@ The app bootstraps from `src/index.ts` and composes the bot in `src/bot.ts`.
 - `lib/logger.ts` - logging setup
 - `middleware/` - Telegram middleware
 - `tests/` - integration-style command tests and barcode fixture tests
-- `downloads/` - runtime image downloads
+- `workflows/` - user workflow specifications
 - `db.json` - local persistent data store
 
 ## Runtime configuration
@@ -177,10 +199,10 @@ There is no dedicated full end-to-end environment in this repository.
 
 ## Operational notes
 
-- Storage is local-file based (`db.json`), so this is suitable for single-instance/local usage unless adapted.
-- `downloads/` may accumulate files over time and should be managed as part of runtime hygiene.
+- Storage is local-file based (`db.json`), suitable for single-instance/local usage unless adapted.
 - Unauthorized users are silently ignored by middleware.
+- Workflow docs in `workflows/` are the source of truth for user behavior.
 
 ## Intended use of this AGENTS.md
 
-This document is a high-level orientation for engineers and automated coding agents entering the codebase. It intentionally avoids low-level implementation details so contributors can quickly understand system boundaries and navigate to the right modules.
+This document is a high-level orientation for engineers and coding agents entering the codebase. It intentionally avoids low-level implementation details so contributors can quickly understand system boundaries and navigate to the right modules.
