@@ -1,5 +1,6 @@
 import { readBarcodes } from "zxing-wasm/reader";
 import type { ReadInputBarcodeFormat, ReadResult } from "zxing-wasm/reader";
+import { readFile } from "node:fs/promises";
 import { logger } from "../logger";
 
 const FOOD_BARCODE_FORMATS: ReadInputBarcodeFormat[] = [
@@ -59,7 +60,11 @@ export class BarcodeReader {
   }
 
   async readFromFile(filePath: string): Promise<string | null> {
-    const fileBytes = await Bun.file(filePath).arrayBuffer();
+    const fileBuffer = await readFile(filePath);
+    const fileBytes = fileBuffer.buffer.slice(
+      fileBuffer.byteOffset,
+      fileBuffer.byteOffset + fileBuffer.byteLength,
+    );
     return this.readFromImage(fileBytes);
   }
 }

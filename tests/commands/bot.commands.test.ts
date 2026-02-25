@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "@jest/globals";
 import type { UserFromGetMe } from "grammy/types";
 import { createBot } from "../../src/bot";
 
@@ -157,9 +157,9 @@ describe("bot command handlers", () => {
     expect(submittedItems[0]?.barcode).toBe("737628064502");
     expect(submittedItems[0]?.alias).toBe("my breakfast peanut");
     expect(submittedItems[0]?.nutritionFacts.energyKcal100g).toBe(590);
-    expect(sentTexts.some((text) => text.includes("Submit started"))).toBeTrue();
-    expect(sentTexts.some((text) => text.includes("Found: Peanut Butter"))).toBeTrue();
-    expect(sentTexts.some((text) => text.includes("Saved Peanut Butter with alias"))).toBeTrue();
+    expect(sentTexts.some((text) => text.includes("Submit started"))).toBe(true);
+    expect(sentTexts.some((text) => text.includes("Found: Peanut Butter"))).toBe(true);
+    expect(sentTexts.some((text) => text.includes("Saved Peanut Butter with alias"))).toBe(true);
   });
 
   it("handles /item_submit photo barcode and skip alias", async () => {
@@ -254,7 +254,7 @@ describe("bot command handlers", () => {
     expect(submittedItems.length).toBe(1);
     expect(submittedItems[0]?.barcode).toBe("5060128612345");
     expect(submittedItems[0]?.alias).toBeUndefined();
-    expect(sentTexts.some((text) => text.includes("Saved Oat Bar without alias."))).toBeTrue();
+    expect(sentTexts.some((text) => text.includes("Saved Oat Bar without alias."))).toBe(true);
   });
 
   it("handles /item_list range and returns selected fields", async () => {
@@ -331,13 +331,13 @@ describe("bot command handlers", () => {
     await bot.handleUpdate(buildTextUpdate("/item_list 2-3") as unknown as BotUpdate);
 
     expect(sentTexts.length).toBe(1);
-    expect(sentTexts[0]?.includes("barcode: 1002")).toBeTrue();
-    expect(sentTexts[0]?.includes("name: Item Two")).toBeTrue();
-    expect(sentTexts[0]?.includes("alias: two")).toBeTrue();
-    expect(sentTexts[0]?.includes("protein: 20")).toBeTrue();
-    expect(sentTexts[0]?.includes("calories: 200")).toBeTrue();
-    expect(sentTexts[0]?.includes("barcode: 1003")).toBeTrue();
-    expect(sentTexts[0]?.includes("barcode: 1001")).toBeFalse();
+    expect(sentTexts[0]?.includes("barcode: 1002")).toBe(true);
+    expect(sentTexts[0]?.includes("name: Item Two")).toBe(true);
+    expect(sentTexts[0]?.includes("alias: two")).toBe(true);
+    expect(sentTexts[0]?.includes("protein: 20")).toBe(true);
+    expect(sentTexts[0]?.includes("calories: 200")).toBe(true);
+    expect(sentTexts[0]?.includes("barcode: 1003")).toBe(true);
+    expect(sentTexts[0]?.includes("barcode: 1001")).toBe(false);
   });
 
   it("uses default /item_list range of 1-10", async () => {
@@ -400,10 +400,10 @@ describe("bot command handlers", () => {
     await bot.handleUpdate(buildTextUpdate("/item_list") as unknown as BotUpdate);
 
     expect(sentTexts.length).toBe(1);
-    expect(sentTexts[0]?.includes("1. barcode: 2001")).toBeTrue();
-    expect(sentTexts[0]?.includes("10. barcode: 20010")).toBeTrue();
-    expect(sentTexts[0]?.includes("11. barcode: 20011")).toBeFalse();
-    expect(sentTexts[0]?.includes("12. barcode: 20012")).toBeFalse();
+    expect(sentTexts[0]?.includes("1. barcode: 2001")).toBe(true);
+    expect(sentTexts[0]?.includes("10. barcode: 20010")).toBe(true);
+    expect(sentTexts[0]?.includes("11. barcode: 20011")).toBe(false);
+    expect(sentTexts[0]?.includes("12. barcode: 20012")).toBe(false);
   });
 
   it("handles /item_delete with alias-first matching", async () => {
@@ -481,7 +481,7 @@ describe("bot command handlers", () => {
 
     await bot.handleUpdate(buildTextUpdate("/item_delete 22222") as unknown as BotUpdate);
 
-    expect(sentTexts.some((text) => text.includes("Deleted item: Alias Match Item"))).toBeTrue();
+    expect(sentTexts.some((text) => text.includes("Deleted item: Alias Match Item"))).toBe(true);
     expect(listedItems.length).toBe(1);
     expect(listedItems[0]?.productName).toBe("Barcode Match Item");
   });
@@ -572,7 +572,7 @@ describe("bot command handlers", () => {
     expect(updatedItems[0]?.index).toBe(0);
     expect(listedItems[0]?.productName).toBe("New Oat Bar");
     expect(listedItems[0]?.alias).toBe("updated-breakfast");
-    expect(sentTexts.some((text) => text.includes("Updating Old Peanut Butter"))).toBeTrue();
+    expect(sentTexts.some((text) => text.includes("Updating Old Peanut Butter"))).toBe(true);
   });
 
   it("ends /item_update flow when alias does not exist", async () => {
@@ -624,7 +624,7 @@ describe("bot command handlers", () => {
     await bot.handleUpdate(buildTextUpdate("/item_update unknown") as unknown as BotUpdate);
     await bot.handleUpdate(buildTextUpdate("barcode 5060128612345") as unknown as BotUpdate);
 
-    expect(sentTexts.some((text) => text.includes("Alias not found."))).toBeTrue();
-    expect(sentTexts.some((text) => text.includes("Found:"))).toBeFalse();
+    expect(sentTexts.some((text) => text.includes("Alias not found."))).toBe(true);
+    expect(sentTexts.some((text) => text.includes("Found:"))).toBe(false);
   });
 });

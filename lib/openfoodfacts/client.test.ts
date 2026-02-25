@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "@jest/globals";
 import { AxiosError, AxiosHeaders } from "axios";
 import { OpenFoodFactsApiError, OpenFoodFactsClient } from "./client";
 

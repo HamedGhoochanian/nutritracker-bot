@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "@jest/globals";
 import { existsSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { BarcodeReader } from "../../lib/barcode";
