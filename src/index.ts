@@ -1,4 +1,4 @@
-import { BotRepository } from "../lib/repositories/botRepository";
+import { BotRepository } from "./repositories";
 import { createBot, startBot } from "./bot";
 
 const token = process.env.BOT_TOKEN;

@@ -1,56 +1,15 @@
 import { JSONFilePreset } from "lowdb/node";
-
-export type LoggedMessage = {
-  id: number;
-  chatId: number;
-  userId?: number;
-  username?: string;
-  firstName?: string;
-  text?: string;
-  caption?: string;
-  date: string;
-};
-
-export type SavedProduct = {
-  productId: string;
-  productName: string;
-  chatId: number;
-  userId?: number;
-  username?: string;
-  date: string;
-};
-
-export type SubmittedNutritionFacts = {
-  energyKcal100g?: number;
-  proteins100g?: number;
-  carbohydrates100g?: number;
-  fat100g?: number;
-  sugars100g?: number;
-  fiber100g?: number;
-  salt100g?: number;
-  sodium100g?: number;
-};
-
-export type SubmittedItem = {
-  barcode: string;
-  productName: string;
-  nutritionFacts: SubmittedNutritionFacts;
-  alias?: string;
-  brand?: string;
-  quantity?: string;
-  chatId: number;
-  userId?: number;
-  username?: string;
-  date: string;
-};
+import type { BotRepositoryPort } from "./ports";
+import type { LoggedMessage, SavedMeal, SavedProduct, SubmittedItem } from "./types";
 
 type DbSchema = {
   messages: LoggedMessage[];
   products: SavedProduct[];
   submittedItems: SubmittedItem[];
+  meals: SavedMeal[];
 };
 
-export class BotRepository {
+export class BotRepository implements BotRepositoryPort {
   private constructor(private readonly db: Awaited<ReturnType<typeof JSONFilePreset<DbSchema>>>) {}
 
   static async create(dbPath = "db.json"): Promise<BotRepository> {
@@ -58,15 +17,11 @@ export class BotRepository {
       messages: [],
       products: [],
       submittedItems: [],
+      meals: [],
     });
     const repo = new BotRepository(db);
     await repo.ensureSchema();
     return repo;
-  }
-
-  async logMessage(entry: LoggedMessage): Promise<void> {
-    this.db.data.messages.push(entry);
-    await this.db.write();
   }
 
   async saveProduct(entry: SavedProduct): Promise<void> {
@@ -139,6 +94,20 @@ export class BotRepository {
     await this.db.write();
   }
 
+  async saveMeal(entry: SavedMeal): Promise<void> {
+    this.db.data.meals.push(entry);
+    await this.db.write();
+  }
+
+  async findMealByName(name: string): Promise<SavedMeal | null> {
+    const normalized = name.trim().toLowerCase();
+    if (!normalized) {
+      return null;
+    }
+
+    return this.db.data.meals.find((meal) => meal.name.trim().toLowerCase() === normalized) ?? null;
+  }
+
   private async ensureSchema(): Promise<void> {
     let changed = false;
 
@@ -154,6 +123,11 @@ export class BotRepository {
 
     if (!this.db.data.submittedItems) {
       this.db.data.submittedItems = [];
+      changed = true;
+    }
+
+    if (!this.db.data.meals) {
+      this.db.data.meals = [];
       changed = true;
     }
 

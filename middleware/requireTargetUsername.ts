@@ -1,5 +1,5 @@
 import type { Context, MiddlewareFn } from "grammy";
-import { logger } from "../lib/logger";
+import { logger } from "../src/logger";
 
 export const requireTargetUsername = <C extends Context>(
   targetUsername: string,

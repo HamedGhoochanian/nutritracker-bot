@@ -1,19 +1,17 @@
 import { Composer } from "grammy";
-import { logger } from "../../lib/logger";
-import type { SubmittedNutritionFacts } from "../../lib/repositories/botRepository";
+import type { BarcodeReaderPort } from "../barcode/barcodeReader";
+import { logger } from "../logger";
+import type { OpenFoodFactsClientPort } from "../openfoodfacts/client";
+import type { ItemRepositoryPort, SubmittedNutritionFacts } from "../repositories";
+import { getMessageText } from "./getMessageText";
 import type { MyContext } from "../types/context";
-import type {
-  BarcodeReaderLike,
-  BotRepositoryLike,
-  OpenFoodFactsClientLike,
-} from "../types/dependencies";
 import { SubmitItemMode, SubmitItemState } from "../types/session";
 
 type SubmitItemDeps = {
   token: string;
-  repository: BotRepositoryLike;
-  offClient: OpenFoodFactsClientLike;
-  barcodeReader: BarcodeReaderLike;
+  repository: ItemRepositoryPort;
+  offClient: OpenFoodFactsClientPort;
+  barcodeReader: BarcodeReaderPort;
 };
 
 const COMMANDS = {
@@ -253,7 +251,7 @@ const resetSubmitFlow = (ctx: MyContext): void => {
 const resolveBarcodeFromMessage = async (
   ctx: MyContext,
   token: string,
-  barcodeReader: BarcodeReaderLike,
+  barcodeReader: BarcodeReaderPort,
 ): Promise<string | null> => {
   const message = ctx.message;
   if (!message) {
@@ -353,21 +351,6 @@ const getString = (record: Record<string, unknown>, key: string): string | undef
   }
   const trimmed = value.trim();
   return trimmed ? trimmed : undefined;
-};
-
-const getMessageText = (ctx: MyContext): string => {
-  const message = ctx.message;
-  if (!message) {
-    return "";
-  }
-
-  if ("text" in message && typeof message.text === "string") {
-    return message.text;
-  }
-  if ("caption" in message && typeof message.caption === "string") {
-    return message.caption;
-  }
-  return "";
 };
 
 const parseRange = (query: string): { start: number; end: number } | null | "invalid" => {

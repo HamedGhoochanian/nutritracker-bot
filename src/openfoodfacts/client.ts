@@ -15,6 +15,13 @@ import type {
 const DEFAULT_BASE_URL = "https://world.openfoodfacts.net";
 const DEFAULT_USER_AGENT = "NutriTrackerBot/1.0 (contact@example.com)";
 
+export interface OpenFoodFactsClientPort {
+  getProduct(
+    productId: string,
+    fields?: readonly string[],
+  ): Promise<Record<string, unknown> | null>;
+}
+
 export class OpenFoodFactsApiError extends Error {
   readonly status?: number;
   readonly url?: string;
@@ -29,7 +36,7 @@ export class OpenFoodFactsApiError extends Error {
   }
 }
 
-export class OpenFoodFactsClient {
+export class OpenFoodFactsClient implements OpenFoodFactsClientPort {
   private readonly http: AxiosInstance;
   private readonly retries: number;
   private readonly retryDelayMs: number;
@@ -55,7 +62,7 @@ export class OpenFoodFactsClient {
     this.retryDelayMs = retryDelayMs;
   }
 
-  async getProduct(productId: string, fields?: string[]): Promise<OffProduct | null> {
+  async getProduct(productId: string, fields?: readonly string[]): Promise<OffProduct | null> {
     const id = productId.trim();
     if (!id) {
       return null;

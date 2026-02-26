@@ -9,6 +9,11 @@ export enum SubmitItemMode {
   Update = "update",
 }
 
+export enum MealCreateState {
+  Idle = "idle",
+  Collecting = "collecting",
+}
+
 export type NutritionFacts = {
   energyKcal100g?: number;
   proteins100g?: number;
@@ -35,11 +40,28 @@ export type SessionData = {
     updateIndex?: number;
     pending?: PendingSubmittedItem;
   };
+  mealCreate: {
+    state: MealCreateState;
+    name?: string;
+    ingredients: Array<{
+      barcode: string;
+      alias?: string;
+      productName: string;
+      quantity?: string;
+      amount: number;
+      proteins100g?: number;
+      energyKcal100g?: number;
+    }>;
+  };
 };
 
 export const initialSessionData = (): SessionData => ({
   submit: {
     state: SubmitItemState.Idle,
     mode: SubmitItemMode.Create,
+  },
+  mealCreate: {
+    state: MealCreateState.Idle,
+    ingredients: [],
   },
 });
