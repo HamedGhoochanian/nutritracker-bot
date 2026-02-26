@@ -10,15 +10,24 @@ At a high level, the bot:
 2. Restricts access to a single allowed username.
 3. Manages item workflows through command handlers.
 4. Looks up product data from Open Food Facts.
-5. Persists item and message data in local JSON storage.
+5. Persists item and meal data in local JSON storage.
 
 This is a backend-only project. There is no web frontend in this repository.
+
+## Backward-compatibility policy
+
+This project is not currently running in production and has no live users/environments to preserve.
+
+- Prefer clean architecture and clarity over backward compatibility.
+- Breaking refactors are acceptable when they simplify the codebase.
+- Do not keep compatibility shims unless explicitly requested.
 
 ## Where to find user flows
 
 User-facing workflow specs live in the `workflows/` directory.
 
-- Primary items workflow file: `workflows/items.md`
+- Primary item workflow file: `workflows/items.md`
+- Meal workflow file: `workflows/meals.md`
 
 When implementing or changing bot behavior, check `workflows/` first.
 
@@ -32,7 +41,7 @@ When implementing or changing bot behavior, check `workflows/` first.
 - Persistence: lowdb (JSON file)
 - Logging: winston
 - Linting/formatting: ESLint + Prettier
-- Testing: Bun test runner
+- Testing: Jest (`ts-jest`)
 
 ## Core architecture
 
@@ -49,7 +58,7 @@ The app bootstraps from `src/index.ts` and composes the bot in `src/bot.ts`.
   - Creates `Bot<MyContext>`.
   - Configures session middleware.
   - Applies username authorization middleware.
-  - Registers composer-based handlers with injected dependencies.
+  - Registers composer handlers via `src/composers/index.ts`.
 
 ### Middleware
 
@@ -71,29 +80,31 @@ The app bootstraps from `src/index.ts` and composes the bot in `src/bot.ts`.
   - Persists created/updated/deleted item records via repository methods.
   - Uses session state for multi-step submit/update flows.
 
-- `src/composers/messageLogger.ts`
-  - Logs message metadata to `db.json` for `message` updates that reach this composer.
+- `src/composers/mealManager.ts`
+  - Implements `/meal_create` flow logic.
+  - Resolves ingredient references from existing submitted items.
+  - Computes and stores aggregate meal nutrition.
 
 - `src/composers/index.ts`
-  - Wires composers with dependency injection.
+  - Wires active composers with constructor-injected dependencies.
 
 ### Session model
 
 - `src/types/session.ts`
-  - Defines submit flow state enum and mode enum.
-  - Tracks pending item data while awaiting alias input.
+  - Defines submit and meal flow state enums.
+  - Tracks pending submit data and in-progress meal creation.
   - Initializes default session state.
 
 ### Barcode domain
 
-- `lib/barcode/barcodeReader.ts`
+- `src/barcode/barcodeReader.ts`
   - Prioritizes common food barcode formats first.
   - Falls back to broad scanning if needed.
   - Returns the best candidate barcode.
 
 ### Product lookup domain
 
-- `lib/openfoodfacts/client.ts`
+- `src/openfoodfacts/client.ts`
   - Encapsulates Open Food Facts API calls.
   - Supports product lookup and additional OFF endpoints.
   - Retries transient errors (`429`, `5xx`) with backoff.
@@ -101,16 +112,22 @@ The app bootstraps from `src/index.ts` and composes the bot in `src/bot.ts`.
 
 ### Persistence layer
 
-- `lib/repositories/botRepository.ts`
+- `src/repositories/botRepository.ts`
   - Manages read/write operations to local JSON storage.
-  - Persists:
-    - message metadata
-    - submitted item records (barcode, alias, nutrition snapshot, metadata)
-  - Supports listing, alias-first delete, lookup-by-alias, and index-based update.
+  - Persists submitted items and meals.
+  - Supports item listing, alias-first delete, lookup-by-alias, and index-based update.
+  - Supports meal save and duplicate-name lookup.
+
+- `src/repositories/types.ts`
+  - Repository data model types (`SubmittedItem`, `SavedMeal`, etc.).
+
+- `src/repositories/ports.ts`
+  - Narrow repository interfaces by use case (`ItemRepositoryPort`, `MealRepositoryPort`).
+  - `BotRepositoryPort` composes narrower ports.
 
 ### Logging
 
-- `lib/logger.ts`
+- `src/logger.ts`
   - Provides structured JSON logging via winston.
   - Normalizes payloads into a stable message shape.
 
@@ -143,23 +160,25 @@ The app bootstraps from `src/index.ts` and composes the bot in `src/bot.ts`.
 3. If found, bot runs submit-style flow to collect replacement product.
 4. Bot updates the existing item record.
 
-### Message logging flow
+### Meal create flow (`/meal_create <name>`)
 
-1. A message update reaches the message logger composer.
-2. Message metadata is stored in `db.json`.
+1. User starts meal creation with a name.
+2. Bot collects `<barcode or alias> <amount>` lines across messages.
+3. Bot validates/updates ingredients using latest entries.
+4. User sends `done`, then bot saves meal and reports total protein/calories.
 
 ## Project structure (high-level)
 
 - `src/index.ts` - app entry point
 - `src/bot.ts` - bot construction and middleware/composer wiring
-- `src/composers/` - command/message handlers
-- `src/types/` - context, session, and dependency contracts
-- `lib/barcode/` - barcode reading logic
-- `lib/openfoodfacts/` - Open Food Facts client, types, and tests
-- `lib/repositories/` - JSON persistence
-- `lib/logger.ts` - logging setup
+- `src/composers/` - command handlers and shared composer helpers
+- `src/types/` - context and session types
+- `src/barcode/` - barcode reading logic
+- `src/openfoodfacts/` - Open Food Facts client and types
+- `src/repositories/` - repository implementation, ports, and data types
+- `src/logger.ts` - logging setup
 - `middleware/` - Telegram middleware
-- `tests/` - integration-style command tests and barcode fixture tests
+- `tests/` - command, barcode, and Open Food Facts tests
 - `workflows/` - user workflow specifications
 - `db.json` - local persistent data store
 
@@ -182,7 +201,7 @@ From project root:
 
 - `bun run start` - run bot
 - `bun run dev` - run bot in watch mode
-- `bun run test` - execute tests
+- `bun run test` - execute tests (Jest)
 - `bun run lint` - run lint checks
 - `bun run lint:fix` - auto-fix lint issues where possible
 - `bun run format` - apply Prettier formatting
@@ -191,7 +210,7 @@ From project root:
 
 Current tests cover:
 
-- Open Food Facts client behavior and retry/error handling (`lib/openfoodfacts/client.test.ts`).
+- Open Food Facts client behavior and retry/error handling (`tests/openfoodfacts/client.test.ts`).
 - Barcode reader fixture dataset validation (`tests/barcode/`).
 - Bot command behavior and authorization checks (`tests/commands/`).
 

@@ -1,11 +1,16 @@
 import { Composer } from "grammy";
-import type { SavedMealIngredient, SubmittedItem } from "../../lib/repositories/botRepository";
+import type {
+  ItemRepositoryPort,
+  MealRepositoryPort,
+  SavedMealIngredient,
+  SubmittedItem,
+} from "../repositories";
+import { getMessageText } from "./getMessageText";
 import type { MyContext } from "../types/context";
-import type { BotRepositoryLike } from "../types/dependencies";
 import { MealCreateState } from "../types/session";
 
 type MealManagerDeps = {
-  repository: BotRepositoryLike;
+  repository: MealRepositoryPort & Pick<ItemRepositoryPort, "listSubmittedItems">;
 };
 
 const COMMANDS = {
@@ -236,21 +241,4 @@ const resetMealFlow = (ctx: MyContext): void => {
     state: MealCreateState.Idle,
     ingredients: [],
   };
-};
-
-const getMessageText = (ctx: MyContext): string => {
-  const message = ctx.message;
-  if (!message) {
-    return "";
-  }
-
-  if ("text" in message && typeof message.text === "string") {
-    return message.text;
-  }
-
-  if ("caption" in message && typeof message.caption === "string") {
-    return message.caption;
-  }
-
-  return "";
 };

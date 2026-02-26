@@ -1,23 +1,21 @@
 import { Bot, session } from "grammy";
-import { BarcodeReader } from "../lib/barcode";
-import { logger } from "../lib/logger";
-import { OpenFoodFactsClient } from "../lib/openfoodfacts";
+import { BarcodeReader } from "./barcode";
+import type { BarcodeReaderPort } from "./barcode/barcodeReader";
+import { logger } from "./logger";
+import { OpenFoodFactsClient } from "./openfoodfacts";
+import type { OpenFoodFactsClientPort } from "./openfoodfacts/client";
+import type { BotRepositoryPort } from "./repositories";
 import { requireTargetUsername } from "../middleware/requireTargetUsername";
 import { createAllComposers } from "./composers";
 import type { MyContext } from "./types/context";
-import type {
-  BarcodeReaderLike,
-  BotRepositoryLike,
-  OpenFoodFactsClientLike,
-} from "./types/dependencies";
 import { initialSessionData } from "./types/session";
 
 export type CreateBotDeps = {
   token: string;
   targetUsername: string;
-  repository: BotRepositoryLike;
-  offClient?: OpenFoodFactsClientLike;
-  barcodeReader?: BarcodeReaderLike;
+  repository: BotRepositoryPort;
+  offClient?: OpenFoodFactsClientPort;
+  barcodeReader?: BarcodeReaderPort;
 };
 
 export const createBot = ({
@@ -36,7 +34,6 @@ export const createBot = ({
   );
   bot.use(requireTargetUsername(targetUsername));
   bot.use(createAllComposers({ token, repository, offClient, barcodeReader }));
-
   return bot;
 };
 

@@ -1,6 +1,6 @@
+import { readFile } from "node:fs/promises";
 import { readBarcodes } from "zxing-wasm/reader";
 import type { ReadInputBarcodeFormat, ReadResult } from "zxing-wasm/reader";
-import { readFile } from "node:fs/promises";
 import { logger } from "../logger";
 
 const FOOD_BARCODE_FORMATS: ReadInputBarcodeFormat[] = [
@@ -14,6 +14,10 @@ const FOOD_BARCODE_FORMATS: ReadInputBarcodeFormat[] = [
   "ITF",
   "Code128",
 ];
+
+export interface BarcodeReaderPort {
+  readFromImage(imageBytes: ArrayBuffer): Promise<string | null>;
+}
 
 const isLikelyProductBarcode = (value: string): boolean => {
   return /^(\d{8}|\d{12}|\d{13}|\d{14})$/.test(value);
@@ -32,7 +36,7 @@ const pickBestBarcode = (results: ReadResult[]): string | null => {
   return texts.at(0) ?? null;
 };
 
-export class BarcodeReader {
+export class BarcodeReader implements BarcodeReaderPort {
   async readFromImage(image: ArrayBuffer): Promise<string | null> {
     const prioritizedResults = await readBarcodes(image, {
       tryHarder: true,

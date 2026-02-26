@@ -103,6 +103,8 @@ describe("bot command handlers", () => {
       findSubmittedItemByAlias: async () => null,
       updateSubmittedItemAtIndex: async () => {},
       logMessage: async () => {},
+      saveMeal: async () => {},
+      findMealByName: async () => null,
     };
 
     const offClient = {
@@ -176,6 +178,8 @@ describe("bot command handlers", () => {
       findSubmittedItemByAlias: async () => null,
       updateSubmittedItemAtIndex: async () => {},
       logMessage: async () => {},
+      saveMeal: async () => {},
+      findMealByName: async () => null,
     };
 
     const offClient = {
@@ -293,6 +297,8 @@ describe("bot command handlers", () => {
       findSubmittedItemByAlias: async () => null,
       updateSubmittedItemAtIndex: async () => {},
       logMessage: async () => {},
+      saveMeal: async () => {},
+      findMealByName: async () => null,
     };
 
     const offClient = {
@@ -362,6 +368,8 @@ describe("bot command handlers", () => {
       findSubmittedItemByAlias: async () => null,
       updateSubmittedItemAtIndex: async () => {},
       logMessage: async () => {},
+      saveMeal: async () => {},
+      findMealByName: async () => null,
     };
 
     const offClient = {
@@ -444,6 +452,8 @@ describe("bot command handlers", () => {
       findSubmittedItemByAlias: async () => null,
       updateSubmittedItemAtIndex: async () => {},
       logMessage: async () => {},
+      saveMeal: async () => {},
+      findMealByName: async () => null,
     };
 
     const offClient = {
@@ -521,6 +531,8 @@ describe("bot command handlers", () => {
         updatedItems.push({ index, entry });
       },
       logMessage: async () => {},
+      saveMeal: async () => {},
+      findMealByName: async () => null,
     };
 
     const offClient = {
@@ -586,6 +598,8 @@ describe("bot command handlers", () => {
       findSubmittedItemByAlias: async () => null,
       updateSubmittedItemAtIndex: async () => {},
       logMessage: async () => {},
+      saveMeal: async () => {},
+      findMealByName: async () => null,
     };
 
     const offClient = {

@@ -1,18 +1,15 @@
 import { Composer } from "grammy";
+import type { BarcodeReaderPort } from "../barcode/barcodeReader";
+import type { OpenFoodFactsClientPort } from "../openfoodfacts/client";
+import type { ItemRepositoryPort } from "../repositories";
 import type { MyContext } from "../types/context";
-import type {
-  BarcodeReaderLike,
-  BotRepositoryLike,
-  OpenFoodFactsClientLike,
-} from "../types/dependencies";
-import { createMessageLoggerComposer } from "./messageLogger";
 import { createSubmitItemComposer } from "./itemManager";
 
 type AllComposersDeps = {
   token: string;
-  repository: BotRepositoryLike;
-  offClient: OpenFoodFactsClientLike;
-  barcodeReader: BarcodeReaderLike;
+  repository: ItemRepositoryPort;
+  offClient: OpenFoodFactsClientPort;
+  barcodeReader: BarcodeReaderPort;
 };
 
 export const createAllComposers = ({
@@ -23,8 +20,5 @@ export const createAllComposers = ({
 }: AllComposersDeps): Composer<MyContext> => {
   const composer = new Composer<MyContext>();
 
-  composer.use(createSubmitItemComposer({ token, repository, offClient, barcodeReader }));
-  composer.use(createMessageLoggerComposer({ repository }));
-
-  return composer;
+  return composer.use(createSubmitItemComposer({ token, repository, offClient, barcodeReader }));
 };

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "@jest/globals";
 import { existsSync, readdirSync } from "node:fs";
 import path from "node:path";
-import { BarcodeReader } from "../../lib/barcode";
+import { BarcodeReader } from "../../src/barcode";
 
 const fixturesDir = path.resolve("tests/fixtures/barcodes");
 const supportedExt = new Set([".jpg", ".jpeg", ".png", ".webp", ".bmp", ".gif"]);
