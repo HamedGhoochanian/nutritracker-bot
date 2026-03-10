@@ -1,4 +1,5 @@
-import type {} from "./types";
+import type { PersistedMealRecord, SaveMealRecordInput } from "./types";
 
-// eslint-disable-next-line
-export interface BotRepositoryPort {}
+export interface BotRepositoryPort {
+  saveMeal(record: SaveMealRecordInput): Promise<PersistedMealRecord>;
+}

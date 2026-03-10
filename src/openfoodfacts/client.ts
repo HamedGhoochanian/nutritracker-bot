@@ -16,10 +16,10 @@ const DEFAULT_BASE_URL = "https://world.openfoodfacts.net";
 const DEFAULT_USER_AGENT = "NutriTrackerBot/1.0 (contact@example.com)";
 
 export interface OpenFoodFactsClientPort {
-  getProduct(
-    productId: string,
-    fields?: readonly string[],
-  ): Promise<Record<string, unknown> | null>;
+  getProduct(productId: string, fields?: readonly string[]): Promise<OffProduct | null>;
+  searchProducts(params: OffSearchParams): Promise<OffSearchResponse>;
+  getProductsByBarcodePrefix(prefix: string): Promise<OffSearchResponse>;
+  forCountry(country: OffLang): OpenFoodFactsClientPort;
 }
 
 export class OpenFoodFactsApiError extends Error {

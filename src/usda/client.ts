@@ -19,6 +19,7 @@ type UsdaQueryValue = string | number | boolean | ReadonlyArray<string | number>
 
 export interface UsdaFoodClientPort {
   getFood(fdcId: string | number, options?: UsdaGetFoodOptions): Promise<UsdaFoodItem | null>;
+  searchFoods(criteria: UsdaFoodSearchCriteria): Promise<UsdaSearchResult>;
 }
 
 export class UsdaFoodApiError extends Error {

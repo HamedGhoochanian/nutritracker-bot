@@ -1,4 +1,5 @@
 export { UsdaFoodApiError, UsdaFoodClient } from "./client";
+export type { UsdaFoodClientPort } from "./client";
 export type {
   UsdaAbridgedFoodItem,
   UsdaAbridgedFoodNutrient,
