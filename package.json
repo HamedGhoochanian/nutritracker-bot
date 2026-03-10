@@ -27,9 +27,7 @@
   },
   "dependencies": {
     "axios": "^1.13.5",
-    "grammy": "^1.40.0",
     "lowdb": "^7.0.1",
-    "winston": "^3.19.0",
-    "zxing-wasm": "^2.2.4"
+    "winston": "^3.19.0"
   }
 }
