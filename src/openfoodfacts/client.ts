@@ -12,7 +12,7 @@ import type {
   OpenFoodFactsClientOptions,
 } from "./types";
 
-const DEFAULT_BASE_URL = "https://world.openfoodfacts.net";
+const DEFAULT_BASE_URL = "https://world.openfoodfacts.org";
 const DEFAULT_USER_AGENT = "NutriTrackerBot/1.0 (contact@example.com)";
 
 export interface OpenFoodFactsClientPort {

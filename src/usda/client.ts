@@ -129,9 +129,9 @@ export class UsdaFoodClient implements UsdaFoodClientPort {
     }
 
     return this.request<UsdaSearchResult>({
-      method: "GET",
+      method: "POST",
       url: "/v1/foods/search",
-      params: this.normalizeQueryParams({ ...criteria, query }),
+      data: { ...criteria, query },
     });
   }
 

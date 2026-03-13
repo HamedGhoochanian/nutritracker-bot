@@ -1,5 +1,6 @@
 import { selectBestCandidate } from "../matching";
 import type { CandidateMatcherOptions } from "../matching";
+import { logger } from "../logger";
 import type { OffProduct, OpenFoodFactsClientPort } from "../openfoodfacts";
 import type { SourceRouteDecision, SourceRouteQuery } from "../source-router";
 import type { UsdaFoodClientPort, UsdaFoodItem, UsdaSearchResultFood } from "../usda";
@@ -26,11 +27,27 @@ export class CandidateResolutionExecutor implements CandidateResolutionExecutorP
   constructor(private readonly dependencies: ResolutionExecutorDependencies) {}
 
   async fetchCandidates(query: SourceRouteQuery): Promise<ResolutionAttempt> {
-    if (query.source === "openfoodfacts") {
-      return fetchOpenFoodFactsCandidates(query, this.dependencies.openFoodFactsClient);
-    }
+    try {
+      if (query.source === "openfoodfacts") {
+        return await fetchOpenFoodFactsCandidates(query, this.dependencies.openFoodFactsClient);
+      }
 
-    return fetchUsdaCandidates(query, this.dependencies.usdaClient);
+      return await fetchUsdaCandidates(query, this.dependencies.usdaClient);
+    } catch (error: unknown) {
+      logger.warn({
+        event: "resolution.fetch_candidates.failed",
+        source: query.source,
+        mode: query.mode,
+        queryText: query.queryText,
+        error: error instanceof Error ? error.message : String(error),
+      });
+
+      return {
+        source: query.source,
+        query,
+        candidates: [],
+      };
+    }
   }
 
   async fetchPrimaryCandidates(decision: SourceRouteDecision): Promise<ResolutionAttempt> {

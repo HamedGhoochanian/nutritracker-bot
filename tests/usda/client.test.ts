@@ -55,12 +55,15 @@ describe("UsdaFoodClient", () => {
     const client = new UsdaFoodClient({ apiKey: "test-key" });
 
     setMockRequest(client, async (config) => {
+      expect(config.method).toBe("POST");
       expect(config.url).toBe("/v1/foods/search");
       expect(config.params).toEqual({
-        query: "cheddar cheese",
-        dataType: "Foundation,SR Legacy",
-        pageNumber: 2,
         api_key: "test-key",
+      });
+      expect(config.data).toEqual({
+        query: "cheddar cheese",
+        dataType: ["Foundation", "SR Legacy"],
+        pageNumber: 2,
       });
       return {
         data: {
