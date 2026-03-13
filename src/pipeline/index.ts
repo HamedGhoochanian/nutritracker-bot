@@ -1,3 +1,33 @@
 export { parseMealText } from "./parse";
-export { ParsedMealItemSchema, ParsedMealSchema } from "./types";
-export type { ParsedMeal, ParsedMealItem } from "./types";
+export { normalizeParsedMeal } from "./normalize";
+export { computeMealNutrients } from "./compute";
+export { aggregateMealNutrients } from "./aggregate";
+export { runMealPipeline } from "./run";
+export {
+  ComputedMealItemSchema,
+  ComputedMealSchema,
+  NormalizedMealItemSchema,
+  NormalizedMealSchema,
+  NormalizedUnitSchema,
+  CandidateSourceSchema,
+  NutrientsSchema,
+  ParsedMealItemSchema,
+  ParsedMealSchema,
+  ResolutionDecisionSourceSchema,
+  ResolvedCandidateSchema,
+  ResolvedMealItemSchema,
+  ResolvedMealSchema,
+} from "./types";
+export { resolveNormalizedMeal } from "./resolve";
+export type {
+  ComputedMeal,
+  ComputedMealItem,
+  NormalizedMeal,
+  NormalizedMealItem,
+  Nutrients,
+  ParsedMeal,
+  ParsedMealItem,
+  ResolvedCandidate,
+  ResolvedMeal,
+  ResolvedMealItem,
+} from "./types";

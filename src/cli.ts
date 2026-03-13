@@ -1,5 +1,8 @@
-import { GeminiClient } from "./gemini";
-import { parseMealText } from "./pipeline";
+import { OpenRouterClient } from "./llm";
+import { runMealPipeline } from "./pipeline";
+import { OpenFoodFactsClient } from "./openfoodfacts";
+import { BotRepository } from "./repositories";
+import { UsdaFoodClient } from "./usda";
 
 const main = async (): Promise<void> => {
   const args = process.argv.slice(2);
@@ -9,9 +12,20 @@ const main = async (): Promise<void> => {
     throw new Error('Usage: bun run src/cli.ts "<meal text>"');
   }
 
-  const geminiClient = new GeminiClient();
-  const parsedMeal = await parseMealText(mealText, geminiClient);
-  process.stdout.write(`${JSON.stringify(parsedMeal, null, 2)}\n`);
+  const llmClient = new OpenRouterClient();
+  const usdaClient = new UsdaFoodClient();
+  const offClient = new OpenFoodFactsClient();
+  const repository = await BotRepository.create();
+  const result = await runMealPipeline(mealText, {
+    llmClient,
+    usdaClient,
+    offClient,
+    repository,
+  });
+
+  process.stdout.write("RESULT_JSON_START\n");
+  process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+  process.stdout.write("RESULT_JSON_END\n");
 };
 
 main().catch((error: unknown) => {

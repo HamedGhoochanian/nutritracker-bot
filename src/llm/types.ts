@@ -1,4 +1,4 @@
-export type GeminiClientOptions = {
+export type LlmClientOptions = {
   apiKey?: string;
   model?: string;
   baseUrl?: string;
@@ -7,7 +7,7 @@ export type GeminiClientOptions = {
   retryDelayMs?: number;
 };
 
-export type GeminiApiErrorOptions = {
+export type LlmApiErrorOptions = {
   message: string;
   status?: number;
   url?: string;

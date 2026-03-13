@@ -22,4 +22,25 @@ describe("cli", () => {
     expect(result.code).toBe(1);
     expect(result.stderr).toContain('Usage: bun run src/cli.ts "<meal text>"');
   });
+
+  it("prints result json markers", async () => {
+    const result = await new Promise<{ code: number | null; stdout: string }>((resolve) => {
+      const child = spawn("bun", ["run", "src/cli.ts", "one banana"], {
+        cwd: process.cwd(),
+        env: { ...process.env, GEMINI_API_KEY: "x", USDA_API_KEY: "x" },
+      });
+
+      let stdout = "";
+      child.stdout.on("data", (chunk: Buffer) => {
+        stdout += chunk.toString();
+      });
+
+      child.on("close", (code) => {
+        resolve({ code, stdout });
+      });
+    });
+
+    expect(result.code).toBe(1);
+    expect(result.stdout.includes("RESULT_JSON_START")).toBe(false);
+  });
 });

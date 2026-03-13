@@ -2,7 +2,8 @@ import axios from "axios";
 import type { AxiosInstance, AxiosRequestConfig } from "axios";
 import { z } from "zod";
 import { logger } from "../logger";
-import type { GeminiApiErrorOptions, GeminiClientOptions } from "./types";
+import type { LlmClientPort } from "./client";
+import type { LlmApiErrorOptions, LlmClientOptions } from "./types";
 
 const DEFAULT_BASE_URL = "https://generativelanguage.googleapis.com";
 const DEFAULT_MODEL = "gemini-3-flash-preview";
@@ -23,16 +24,12 @@ const GeminiGenerateContentResponseSchema = z.object({
   candidates: z.tuple([GeminiCandidateSchema]).rest(GeminiCandidateSchema),
 });
 
-export interface GeminiClientPort {
-  generateJson(prompt: string): Promise<unknown>;
-}
-
 export class GeminiApiError extends Error {
   readonly status?: number;
   readonly url?: string;
   readonly payload?: unknown;
 
-  constructor(options: GeminiApiErrorOptions) {
+  constructor(options: LlmApiErrorOptions) {
     super(options.message);
     this.name = "GeminiApiError";
     this.status = options.status;
@@ -41,14 +38,14 @@ export class GeminiApiError extends Error {
   }
 }
 
-export class GeminiClient implements GeminiClientPort {
+export class GeminiClient implements LlmClientPort {
   private readonly http: AxiosInstance;
   private readonly apiKey: string;
   private readonly model: string;
   private readonly retries: number;
   private readonly retryDelayMs: number;
 
-  constructor(options: GeminiClientOptions = {}) {
+  constructor(options: LlmClientOptions = {}) {
     let baseUrl = DEFAULT_BASE_URL;
     if (options.baseUrl !== undefined) {
       baseUrl = options.baseUrl;

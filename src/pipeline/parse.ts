@@ -1,5 +1,5 @@
 import { logger } from "../logger";
-import type { GeminiClientPort } from "../gemini/client";
+import type { LlmClientPort } from "../llm";
 import { ParsedMealSchema } from "./types";
 import type { ParsedMeal } from "./types";
 
@@ -16,12 +16,12 @@ const PARSE_MEAL_PROMPT = [
 
 export const parseMealText = async (
   mealText: string,
-  geminiClient: GeminiClientPort,
+  llmClient: LlmClientPort,
 ): Promise<ParsedMeal> => {
   const input = mealText.trim();
 
   logger.debug({ event: "pipeline.parse.request", mealText: input });
-  const payload = await geminiClient.generateJson(`${PARSE_MEAL_PROMPT}\nMeal text: ${input}`);
+  const payload = await llmClient.generateJson(`${PARSE_MEAL_PROMPT}\nMeal text: ${input}`);
   const parsed = ParsedMealSchema.parse(payload);
   logger.debug({ event: "pipeline.parse.response", itemCount: parsed.items.length });
   return parsed;
