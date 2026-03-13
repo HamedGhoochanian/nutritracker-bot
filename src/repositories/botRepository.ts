@@ -1,156 +1,138 @@
-import { JSONFilePreset } from "lowdb/node";
+import { Database } from "bun:sqlite";
 import { logger } from "../logger";
 import type { BotRepositoryPort } from "./ports";
-import { RepositoryDbSchema, SaveMealInputSchema } from "./types";
-import type { RepositoryDb, SaveMealInput, SavedConsumption, SavedMeal } from "./types";
+import { SaveMealInputSchema, SavedConsumptionSchema, SavedMealSchema } from "./types";
+import type { SaveMealInput, SavedConsumption, SavedMeal } from "./types";
 
-type StoredCandidate = {
+type MealRow = {
   id: string;
-  source: "usda" | "off";
-  name: string;
-  brand: string | null;
-  score: number;
+  meal_text: string;
+  pipeline_json: string;
+  created_at: string;
 };
 
-type StoredResolvedItem = {
-  food_name: string;
-  quantity: number;
-  unit: "g" | "ml" | "piece";
-  original_quantity: number;
-  original_unit: string;
-  preparation: string | null;
-  brand: string | null;
-  is_branded_guess: boolean;
-  confidence: number;
-  top_candidates: StoredCandidate[];
-  selected_candidate: StoredCandidate | null;
-  decision_source: "rule" | "llm" | "none";
-  disambiguation_confidence: number | null;
+type ConsumptionRow = {
+  id: string;
+  meal_id: string;
+  consumed_at: string;
 };
 
-type StoredComputedItem = {
-  food_name: string;
-  quantity: number;
-  unit: "g" | "ml" | "piece";
-  nutrients_per_100: {
-    calories: number | null;
-    protein_g: number | null;
-    fiber_g: number | null;
-  } | null;
-  nutrients_total: {
-    calories: number | null;
-    protein_g: number | null;
-    fiber_g: number | null;
-  } | null;
-  scale_factor: number | null;
+type PipelinePayload = {
+  parsed: SaveMealInput["parsed"];
+  normalized: SaveMealInput["normalized"];
+  resolved: SaveMealInput["resolved"];
+  computed: SaveMealInput["computed"];
+  totals: SaveMealInput["totals"];
 };
-
-type DbSchema = RepositoryDb;
 
 export class BotRepository implements BotRepositoryPort {
-  private constructor(private readonly db: Awaited<ReturnType<typeof JSONFilePreset<DbSchema>>>) {}
+  private constructor(private readonly db: Database) {}
 
-  static async create(dbPath = "db.json"): Promise<BotRepository> {
-    const db = await JSONFilePreset<DbSchema>(dbPath, { meals: [], consumption: [] });
-    const dataWithMeals = db.data as { meals?: unknown; consumption?: unknown };
-    if (dataWithMeals.meals === undefined) {
-      dataWithMeals.meals = [];
-    }
-    if (dataWithMeals.consumption === undefined) {
-      dataWithMeals.consumption = [];
-    }
+  static async create(dbPath = "db.sqlite"): Promise<BotRepository> {
+    const db = new Database(dbPath);
+    db.exec("PRAGMA foreign_keys = ON");
+    db.exec("PRAGMA journal_mode = WAL");
+    db.exec("PRAGMA busy_timeout = 5000");
 
-    const parsed = RepositoryDbSchema.parse(dataWithMeals);
-    db.data = parsed;
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS meals (
+        id TEXT PRIMARY KEY,
+        meal_text TEXT NOT NULL,
+        pipeline_json TEXT NOT NULL CHECK (json_valid(pipeline_json)),
+        created_at TEXT NOT NULL
+      ) STRICT
+    `);
+
+    db.exec(`
+      CREATE UNIQUE INDEX IF NOT EXISTS meals_meal_text_uq
+      ON meals(meal_text)
+    `);
+
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS consumption (
+        id TEXT PRIMARY KEY,
+        meal_id TEXT NOT NULL,
+        consumed_at TEXT NOT NULL,
+        FOREIGN KEY (meal_id) REFERENCES meals(id) ON DELETE CASCADE
+      ) STRICT
+    `);
+
+    db.exec(`
+      CREATE INDEX IF NOT EXISTS consumption_time_idx
+      ON consumption(consumed_at DESC)
+    `);
+
+    db.exec(`
+      CREATE INDEX IF NOT EXISTS consumption_meal_time_idx
+      ON consumption(meal_id, consumed_at DESC)
+    `);
+
     const repo = new BotRepository(db);
     return repo;
+  }
+
+  private mapMealRow(row: MealRow): SavedMeal {
+    const parsedPipeline = JSON.parse(row.pipeline_json) as PipelinePayload;
+    const meal = SavedMealSchema.parse({
+      id: row.id,
+      meal_text: row.meal_text,
+      parsed: parsedPipeline.parsed,
+      normalized: parsedPipeline.normalized,
+      resolved: parsedPipeline.resolved,
+      computed: parsedPipeline.computed,
+      totals: parsedPipeline.totals,
+      created_at: row.created_at,
+    });
+    return meal;
   }
 
   async saveMeal(input: SaveMealInput): Promise<SavedMeal> {
     const payload = SaveMealInputSchema.parse(input);
 
-    const toStoredCandidate = (candidate: {
-      id: string;
-      source: "usda" | "off";
-      name: string;
-      brand: string | null;
-      score: number;
-    }): StoredCandidate => {
-      return {
-        id: candidate.id,
-        source: candidate.source,
-        name: candidate.name,
-        brand: candidate.brand,
-        score: candidate.score,
-      };
-    };
-
-    const resolved = {
-      items: payload.resolved.items.map((item): StoredResolvedItem => {
-        let selectedCandidate: StoredCandidate | null = null;
-        if (item.selected_candidate !== null) {
-          selectedCandidate = toStoredCandidate(item.selected_candidate);
-        }
-
-        return {
-          food_name: item.food_name,
-          quantity: item.quantity,
-          unit: item.unit,
-          original_quantity: item.original_quantity,
-          original_unit: item.original_unit,
-          preparation: item.preparation,
-          brand: item.brand,
-          is_branded_guess: item.is_branded_guess,
-          confidence: item.confidence,
-          top_candidates: item.top_candidates.map((candidate) => toStoredCandidate(candidate)),
-          selected_candidate: selectedCandidate,
-          decision_source: item.decision_source,
-          disambiguation_confidence: item.disambiguation_confidence,
-        };
-      }),
-    };
-
-    const computed = {
-      items: payload.computed.items.map((item): StoredComputedItem => {
-        return {
-          food_name: item.food_name,
-          quantity: item.quantity,
-          unit: item.unit,
-          nutrients_per_100: item.nutrients_per_100,
-          nutrients_total: item.nutrients_total,
-          scale_factor: item.scale_factor,
-        };
-      }),
-    };
-
     const meal = {
-      meal_text: payload.meal_text,
-      parsed: payload.parsed,
-      normalized: payload.normalized,
-      resolved,
-      computed,
-      totals: payload.totals,
       id: crypto.randomUUID(),
+      meal_text: payload.meal_text,
+      pipeline_json: JSON.stringify({
+        parsed: payload.parsed,
+        normalized: payload.normalized,
+        resolved: payload.resolved,
+        computed: payload.computed,
+        totals: payload.totals,
+      }),
       created_at: new Date().toISOString(),
     };
 
-    this.db.data.meals.push(meal);
-    await this.db.write();
+    const statement = this.db.query(
+      "INSERT INTO meals (id, meal_text, pipeline_json, created_at) VALUES (?, ?, ?, ?)",
+    );
+    statement.run(meal.id, meal.meal_text, meal.pipeline_json, meal.created_at);
+
     logger.debug({
       event: "repository.meal.saved",
       mealId: meal.id,
-      itemCount: meal.computed.items.length,
+      itemCount: payload.computed.items.length,
     });
-    return meal;
+
+    return this.mapMealRow(meal);
   }
 
   async getMeals(): Promise<SavedMeal[]> {
-    return this.db.data.meals;
+    const rows = this.db
+      .query("SELECT id, meal_text, pipeline_json, created_at FROM meals ORDER BY created_at ASC")
+      .all() as MealRow[];
+    return rows.map((row) => this.mapMealRow(row));
   }
 
   async findMealByText(mealText: string): Promise<SavedMeal | null> {
-    const meal = this.db.data.meals.find((entry) => entry.meal_text === mealText) ?? null;
-    return meal;
+    const row = this.db
+      .query(
+        "SELECT id, meal_text, pipeline_json, created_at FROM meals WHERE meal_text = ? LIMIT 1",
+      )
+      .get(mealText) as MealRow | null;
+    if (row === null) {
+      return null;
+    }
+    return this.mapMealRow(row);
   }
 
   async saveConsumption(mealId: string): Promise<SavedConsumption> {
@@ -160,17 +142,25 @@ export class BotRepository implements BotRepositoryPort {
       consumed_at: new Date().toISOString(),
     };
 
-    this.db.data.consumption.push(consumption);
-    await this.db.write();
+    const statement = this.db.query(
+      "INSERT INTO consumption (id, meal_id, consumed_at) VALUES (?, ?, ?)",
+    );
+    statement.run(consumption.id, consumption.meal_id, consumption.consumed_at);
+
     logger.debug({
       event: "repository.consumption.saved",
       consumptionId: consumption.id,
       mealId: consumption.meal_id,
     });
-    return consumption;
+
+    const parsed = SavedConsumptionSchema.parse(consumption);
+    return parsed;
   }
 
   async getConsumption(): Promise<SavedConsumption[]> {
-    return this.db.data.consumption;
+    const rows = this.db
+      .query("SELECT id, meal_id, consumed_at FROM consumption ORDER BY consumed_at ASC")
+      .all() as ConsumptionRow[];
+    return rows.map((row) => SavedConsumptionSchema.parse(row));
   }
 }

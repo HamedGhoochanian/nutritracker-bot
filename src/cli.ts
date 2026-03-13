@@ -15,7 +15,11 @@ const main = async (): Promise<void> => {
   const llmClient = new OpenRouterClient();
   const usdaClient = new UsdaFoodClient();
   const offClient = new OpenFoodFactsClient();
-  const repository = await BotRepository.create();
+  let dbPath = "db.sqlite";
+  if (process.env.DB_PATH !== undefined) {
+    dbPath = process.env.DB_PATH;
+  }
+  const repository = await BotRepository.create(dbPath);
   const pipeline = new MealPipeline({
     llmClient,
     usdaClient,

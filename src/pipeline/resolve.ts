@@ -71,6 +71,10 @@ const overlapRatio = (a: Set<string>, b: Set<string>): number => {
   return overlap / a.size;
 };
 
+const symmetricOverlapRatio = (a: Set<string>, b: Set<string>): number => {
+  return (overlapRatio(a, b) + overlapRatio(b, a)) / 2;
+};
+
 const clamp01 = (value: number): number => {
   if (value < 0) {
     return 0;
@@ -87,7 +91,7 @@ const scoreCandidate = (
 ): number => {
   const itemTokens = tokenize(item.food_name);
   const candidateTokens = tokenize(candidate.name);
-  const nameScore = overlapRatio(itemTokens, candidateTokens);
+  const nameScore = symmetricOverlapRatio(itemTokens, candidateTokens);
 
   let brandScore = 0;
   if (item.brand !== null && candidate.brand !== null) {
@@ -334,10 +338,15 @@ const resolveItem = async (
   }
 
   const llmSelected = candidates.find((candidate) => candidate.id === llmSelection?.selectedId);
-  const selected = llmSelected ?? candidates[0] ?? null;
-  const decisionSource = llmSelected === undefined ? "rule" : "llm";
+  const topCandidate = candidates[0] ?? null;
+  const llmSelectionTooLow =
+    llmSelected !== undefined &&
+    topCandidate !== null &&
+    topCandidate.score - llmSelected.score > 0.05;
+  const selected = llmSelectionTooLow ? topCandidate : (llmSelected ?? topCandidate);
+  const decisionSource = llmSelected === undefined || llmSelectionTooLow ? "rule" : "llm";
   const disambiguationConfidence =
-    llmSelected === undefined ? null : (llmSelection?.confidence ?? null);
+    llmSelected === undefined || llmSelectionTooLow ? null : (llmSelection?.confidence ?? null);
 
   logger.debug({
     event: "pipeline.resolve.selected",

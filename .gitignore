@@ -36,3 +36,4 @@ db.json
 downloads/
 skills-lock.json
 .agents/
+db.sqlite*

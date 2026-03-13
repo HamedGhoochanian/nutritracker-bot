@@ -7,7 +7,7 @@ import { BotRepository } from "../../src/repositories";
 describe("BotRepository", () => {
   it("saves meal to db file", async () => {
     const dir = await mkdtemp(join(tmpdir(), "nutritracker-repo-"));
-    const dbPath = join(dir, "db.json");
+    const dbPath = join(dir, "db.sqlite");
     const repository = await BotRepository.create(dbPath);
 
     const saved = await repository.saveMeal({

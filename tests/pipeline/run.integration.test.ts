@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@jest/globals";
-import { mkdtemp, readFile } from "node:fs/promises";
+import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { MealPipeline } from "../../src/pipeline";
@@ -50,7 +50,7 @@ describe("MealPipeline", () => {
     };
 
     const dir = await mkdtemp(join(tmpdir(), "nutritracker-run-"));
-    const dbPath = join(dir, "db.json");
+    const dbPath = join(dir, "db.sqlite");
     const repository = await BotRepository.create(dbPath);
     const pipeline = new MealPipeline({
       llmClient,
@@ -68,11 +68,9 @@ describe("MealPipeline", () => {
     expect(meals[0]?.id).toBe(result.meal_id);
     expect(meals[0]?.totals.calories).toBeCloseTo(89);
 
-    const db = JSON.parse(await readFile(dbPath, "utf8")) as {
-      consumption: Array<{ meal_id: string }>;
-    };
-    expect(db.consumption).toHaveLength(1);
-    expect(db.consumption[0]?.meal_id).toBe(result.meal_id);
+    const consumption = await repository.getConsumption();
+    expect(consumption).toHaveLength(1);
+    expect(consumption[0]?.meal_id).toBe(result.meal_id);
   });
 
   it("reuses existing meal and only appends consumption", async () => {
@@ -119,7 +117,7 @@ describe("MealPipeline", () => {
     };
 
     const dir = await mkdtemp(join(tmpdir(), "nutritracker-run-"));
-    const dbPath = join(dir, "db.json");
+    const dbPath = join(dir, "db.sqlite");
     const repository = await BotRepository.create(dbPath);
     const pipeline = new MealPipeline({
       llmClient,
@@ -136,11 +134,9 @@ describe("MealPipeline", () => {
     const meals = await repository.getMeals();
     expect(meals).toHaveLength(1);
 
-    const db = JSON.parse(await readFile(dbPath, "utf8")) as {
-      consumption: Array<{ meal_id: string }>;
-    };
-    expect(db.consumption).toHaveLength(2);
-    expect(db.consumption[0]?.meal_id).toBe(first.meal_id);
-    expect(db.consumption[1]?.meal_id).toBe(first.meal_id);
+    const consumption = await repository.getConsumption();
+    expect(consumption).toHaveLength(2);
+    expect(consumption[0]?.meal_id).toBe(first.meal_id);
+    expect(consumption[1]?.meal_id).toBe(first.meal_id);
   });
 });
