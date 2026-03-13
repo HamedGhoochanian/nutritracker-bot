@@ -111,7 +111,7 @@ describe("UsdaFoodClient", () => {
   });
 
   it("throws when api key is missing", async () => {
-    const client = new UsdaFoodClient({ retries: 0 });
+    const client = new UsdaFoodClient({ apiKey: "", retries: 0 });
 
     await expect(client.getFood(747448)).rejects.toBeInstanceOf(UsdaFoodApiError);
   });

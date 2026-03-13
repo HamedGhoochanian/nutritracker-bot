@@ -1,0 +1,125 @@
+import axios from "axios";
+import type { AxiosInstance, AxiosRequestConfig } from "axios";
+import { z } from "zod";
+import { logger } from "../logger";
+import type { GeminiApiErrorOptions, GeminiClientOptions } from "./types";
+
+const DEFAULT_BASE_URL = "https://generativelanguage.googleapis.com";
+const DEFAULT_MODEL = "gemini-flash-latest";
+
+const GeminiTextPartSchema = z.object({
+  text: z.string(),
+});
+
+const GeminiContentSchema = z.object({
+  parts: z.tuple([GeminiTextPartSchema]).rest(GeminiTextPartSchema),
+});
+
+const GeminiCandidateSchema = z.object({
+  content: GeminiContentSchema,
+});
+
+const GeminiGenerateContentResponseSchema = z.object({
+  candidates: z.tuple([GeminiCandidateSchema]).rest(GeminiCandidateSchema),
+});
+
+export interface GeminiClientPort {
+  generateJson(prompt: string): Promise<unknown>;
+}
+
+export class GeminiApiError extends Error {
+  readonly status?: number;
+  readonly url?: string;
+  readonly payload?: unknown;
+
+  constructor(options: GeminiApiErrorOptions) {
+    super(options.message);
+    this.name = "GeminiApiError";
+    this.status = options.status;
+    this.url = options.url;
+    this.payload = options.payload;
+  }
+}
+
+export class GeminiClient implements GeminiClientPort {
+  private readonly http: AxiosInstance;
+  private readonly apiKey: string;
+  private readonly model: string;
+
+  constructor(options: GeminiClientOptions = {}) {
+    let baseUrl = DEFAULT_BASE_URL;
+    if (options.baseUrl !== undefined) {
+      baseUrl = options.baseUrl;
+    }
+
+    let timeoutMs = 10000;
+    if (options.timeoutMs !== undefined) {
+      timeoutMs = options.timeoutMs;
+    }
+
+    this.http = axios.create({
+      baseURL: baseUrl,
+      timeout: timeoutMs,
+    });
+
+    let selectedModel = DEFAULT_MODEL;
+    if (options.model !== undefined) {
+      selectedModel = options.model;
+    }
+
+    this.model = selectedModel;
+
+    const configuredApiKey = options.apiKey;
+    if (configuredApiKey !== undefined) {
+      this.apiKey = configuredApiKey;
+      return;
+    }
+
+    const envApiKey = process.env.GEMINI_API_KEY;
+    if (envApiKey === undefined) {
+      throw new GeminiApiError({ message: "Gemini API key is required" });
+    }
+
+    this.apiKey = envApiKey;
+  }
+
+  async generateJson(prompt: string): Promise<unknown> {
+    logger.debug({ event: "gemini.generate_json.request", model: this.model });
+
+    const response = await this.request<unknown>({
+      method: "POST",
+      url: `/v1beta/models/${encodeURIComponent(this.model)}:generateContent`,
+      params: { key: this.apiKey },
+      data: {
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          responseMimeType: "application/json",
+        },
+      },
+    });
+
+    const parsedResponse = GeminiGenerateContentResponseSchema.parse(response);
+    const firstCandidate = parsedResponse.candidates[0];
+    const firstPart = firstCandidate.content.parts[0];
+    logger.debug({ event: "gemini.generate_json.response", model: this.model });
+    return JSON.parse(firstPart.text) as unknown;
+  }
+
+  private async request<T>(config: AxiosRequestConfig): Promise<T> {
+    try {
+      const response = await this.http.request<T>(config);
+      return response.data;
+    } catch (error: unknown) {
+      if (!axios.isAxiosError(error)) {
+        throw error;
+      }
+
+      throw new GeminiApiError({
+        message: error.message,
+        status: error.response?.status,
+        url: config.url,
+        payload: error.response?.data,
+      });
+    }
+  }
+}
