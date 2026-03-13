@@ -1,5 +1,5 @@
 import { OpenRouterClient } from "./llm";
-import { runMealPipeline } from "./pipeline";
+import { MealPipeline } from "./pipeline";
 import { OpenFoodFactsClient } from "./openfoodfacts";
 import { BotRepository } from "./repositories";
 import { UsdaFoodClient } from "./usda";
@@ -16,12 +16,13 @@ const main = async (): Promise<void> => {
   const usdaClient = new UsdaFoodClient();
   const offClient = new OpenFoodFactsClient();
   const repository = await BotRepository.create();
-  const result = await runMealPipeline(mealText, {
+  const pipeline = new MealPipeline({
     llmClient,
     usdaClient,
     offClient,
     repository,
   });
+  const result = await pipeline.run(mealText);
 
   process.stdout.write("RESULT_JSON_START\n");
   process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);

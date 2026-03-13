@@ -95,5 +95,17 @@ describe("BotRepository", () => {
     expect(meals).toHaveLength(1);
     expect(meals[0]?.id).toBe(saved.id);
     expect(meals[0]?.meal_text).toBe("one banana");
+
+    const found = await repository.findMealByText("one banana");
+    expect(found?.id).toBe(saved.id);
+
+    const consumption = await repository.saveConsumption(saved.id);
+    expect(consumption.id).toBeTruthy();
+    expect(consumption.meal_id).toBe(saved.id);
+    expect(consumption.consumed_at).toBeTruthy();
+
+    const entries = await repository.getConsumption();
+    expect(entries).toHaveLength(1);
+    expect(entries[0]?.id).toBe(consumption.id);
   });
 });

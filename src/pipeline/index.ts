@@ -2,7 +2,7 @@ export { parseMealText } from "./parse";
 export { normalizeParsedMeal } from "./normalize";
 export { computeMealNutrients } from "./compute";
 export { aggregateMealNutrients } from "./aggregate";
-export { runMealPipeline } from "./run";
+export { MealPipeline } from "./run";
 export {
   ComputedMealItemSchema,
   ComputedMealSchema,

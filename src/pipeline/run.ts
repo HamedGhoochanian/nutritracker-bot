@@ -16,32 +16,41 @@ type RunMealPipelineDeps = {
   repository: BotRepositoryPort;
 };
 
-export const runMealPipeline = async (
-  mealText: string,
-  deps: RunMealPipelineDeps,
-): Promise<{ meal_id: string }> => {
-  logger.debug({ event: "pipeline.run.start", mealText });
+export class MealPipeline {
+  constructor(private readonly deps: RunMealPipelineDeps) {}
 
-  const parsed = await parseMealText(mealText, deps.llmClient);
-  const normalized = normalizeParsedMeal(parsed);
-  const resolved = await resolveNormalizedMeal(
-    normalized,
-    deps.usdaClient,
-    deps.offClient,
-    deps.llmClient,
-  );
-  const computed = computeMealNutrients(resolved);
-  const totals = aggregateMealNutrients(computed);
+  async run(mealText: string): Promise<{ meal_id: string }> {
+    logger.debug({ event: "pipeline.run.start", mealText });
 
-  const saved = await deps.repository.saveMeal({
-    meal_text: mealText,
-    parsed,
-    normalized,
-    resolved,
-    computed,
-    totals,
-  });
+    const existingMeal = await this.deps.repository.findMealByText(mealText);
+    if (existingMeal !== null) {
+      await this.deps.repository.saveConsumption(existingMeal.id);
+      logger.debug({ event: "pipeline.run.end", mealId: existingMeal.id, cacheHit: true });
+      return { meal_id: existingMeal.id };
+    }
 
-  logger.debug({ event: "pipeline.run.end", mealId: saved.id });
-  return { meal_id: saved.id };
-};
+    const parsed = await parseMealText(mealText, this.deps.llmClient);
+    const normalized = normalizeParsedMeal(parsed);
+    const resolved = await resolveNormalizedMeal(
+      normalized,
+      this.deps.usdaClient,
+      this.deps.offClient,
+      this.deps.llmClient,
+    );
+    const computed = computeMealNutrients(resolved);
+    const totals = aggregateMealNutrients(computed);
+
+    const saved = await this.deps.repository.saveMeal({
+      meal_text: mealText,
+      parsed,
+      normalized,
+      resolved,
+      computed,
+      totals,
+    });
+    await this.deps.repository.saveConsumption(saved.id);
+
+    logger.debug({ event: "pipeline.run.end", mealId: saved.id, cacheHit: false });
+    return { meal_id: saved.id };
+  }
+}

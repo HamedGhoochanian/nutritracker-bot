@@ -70,10 +70,18 @@ export const SavedMealSchema = z.object({
   created_at: z.string().min(1),
 });
 
+export const SavedConsumptionSchema = z.object({
+  id: z.string().min(1),
+  meal_id: z.string().min(1),
+  consumed_at: z.string().min(1),
+});
+
 export const RepositoryDbSchema = z.object({
   meals: z.array(SavedMealSchema),
+  consumption: z.array(SavedConsumptionSchema),
 });
 
 export type SaveMealInput = z.infer<typeof SaveMealInputSchema>;
 export type SavedMeal = z.infer<typeof SavedMealSchema>;
+export type SavedConsumption = z.infer<typeof SavedConsumptionSchema>;
 export type RepositoryDb = z.infer<typeof RepositoryDbSchema>;

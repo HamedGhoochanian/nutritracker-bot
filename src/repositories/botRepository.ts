@@ -2,7 +2,7 @@ import { JSONFilePreset } from "lowdb/node";
 import { logger } from "../logger";
 import type { BotRepositoryPort } from "./ports";
 import { RepositoryDbSchema, SaveMealInputSchema } from "./types";
-import type { RepositoryDb, SaveMealInput, SavedMeal } from "./types";
+import type { RepositoryDb, SaveMealInput, SavedConsumption, SavedMeal } from "./types";
 
 type StoredCandidate = {
   id: string;
@@ -51,10 +51,13 @@ export class BotRepository implements BotRepositoryPort {
   private constructor(private readonly db: Awaited<ReturnType<typeof JSONFilePreset<DbSchema>>>) {}
 
   static async create(dbPath = "db.json"): Promise<BotRepository> {
-    const db = await JSONFilePreset<DbSchema>(dbPath, { meals: [] });
-    const dataWithMeals = db.data as { meals?: unknown };
+    const db = await JSONFilePreset<DbSchema>(dbPath, { meals: [], consumption: [] });
+    const dataWithMeals = db.data as { meals?: unknown; consumption?: unknown };
     if (dataWithMeals.meals === undefined) {
       dataWithMeals.meals = [];
+    }
+    if (dataWithMeals.consumption === undefined) {
+      dataWithMeals.consumption = [];
     }
 
     const parsed = RepositoryDbSchema.parse(dataWithMeals);
@@ -143,5 +146,31 @@ export class BotRepository implements BotRepositoryPort {
 
   async getMeals(): Promise<SavedMeal[]> {
     return this.db.data.meals;
+  }
+
+  async findMealByText(mealText: string): Promise<SavedMeal | null> {
+    const meal = this.db.data.meals.find((entry) => entry.meal_text === mealText) ?? null;
+    return meal;
+  }
+
+  async saveConsumption(mealId: string): Promise<SavedConsumption> {
+    const consumption = {
+      id: crypto.randomUUID(),
+      meal_id: mealId,
+      consumed_at: new Date().toISOString(),
+    };
+
+    this.db.data.consumption.push(consumption);
+    await this.db.write();
+    logger.debug({
+      event: "repository.consumption.saved",
+      consumptionId: consumption.id,
+      mealId: consumption.meal_id,
+    });
+    return consumption;
+  }
+
+  async getConsumption(): Promise<SavedConsumption[]> {
+    return this.db.data.consumption;
   }
 }
