@@ -1,9 +1,21 @@
 import { createLogger, format, transports } from "winston";
+import { mkdirSync } from "node:fs";
+
+let logLevel = "info";
+if (process.env.LOG_LEVEL !== undefined) {
+  logLevel = process.env.LOG_LEVEL;
+}
+
+const logsDirectory = "logs";
+mkdirSync(logsDirectory, { recursive: true });
 
 const baseLogger = createLogger({
-  level: process.env.LOG_LEVEL || "info",
+  level: logLevel,
   format: format.combine(format.timestamp(), format.json()),
-  transports: [new transports.Console()],
+  transports: [
+    new transports.Console(),
+    new transports.File({ filename: `${logsDirectory}/app.log` }),
+  ],
 });
 
 const normalizePayload = (payload: unknown): Record<string, unknown> & { message: string } => {

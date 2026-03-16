@@ -37,3 +37,6 @@ downloads/
 skills-lock.json
 .agents/
 db.sqlite*
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal

@@ -8,6 +8,7 @@ import { computeMealNutrients } from "./compute";
 import { normalizeParsedMeal } from "./normalize";
 import { parseMealText } from "./parse";
 import { resolveNormalizedMeal } from "./resolve";
+import type { Nutrients } from "./types";
 
 type RunMealPipelineDeps = {
   llmClient: LlmClientPort;
@@ -19,14 +20,14 @@ type RunMealPipelineDeps = {
 export class MealPipeline {
   constructor(private readonly deps: RunMealPipelineDeps) {}
 
-  async run(mealText: string): Promise<{ meal_id: string }> {
+  async run(mealText: string): Promise<{ meal_id: string; totals: Nutrients }> {
     logger.debug({ event: "pipeline.run.start", mealText });
 
     const existingMeal = await this.deps.repository.findMealByText(mealText);
     if (existingMeal !== null) {
       await this.deps.repository.saveConsumption(existingMeal.id);
       logger.debug({ event: "pipeline.run.end", mealId: existingMeal.id, cacheHit: true });
-      return { meal_id: existingMeal.id };
+      return { meal_id: existingMeal.id, totals: existingMeal.totals };
     }
 
     const parsed = await parseMealText(mealText, this.deps.llmClient);
@@ -51,6 +52,6 @@ export class MealPipeline {
     await this.deps.repository.saveConsumption(saved.id);
 
     logger.debug({ event: "pipeline.run.end", mealId: saved.id, cacheHit: false });
-    return { meal_id: saved.id };
+    return { meal_id: saved.id, totals };
   }
 }

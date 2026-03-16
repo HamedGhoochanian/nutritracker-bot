@@ -46,7 +46,7 @@ describe("resolveNormalizedMeal", () => {
     expect(resolved.items[0]?.top_candidates[0]?.source).toBe("usda");
   });
 
-  it("uses llm selection when ambiguous", async () => {
+  it("falls back to rule selection when llm picks a lower-scored candidate", async () => {
     const usdaClient = {
       searchFoods: async () => ({ foods: [{ fdcId: 1, description: "Yogurt, plain" }] }),
     };
@@ -83,9 +83,9 @@ describe("resolveNormalizedMeal", () => {
       geminiClient,
     );
 
-    expect(resolved.items[0]?.decision_source).toBe("llm");
-    expect(resolved.items[0]?.selected_candidate?.id).toBe("off:111");
-    expect(resolved.items[0]?.disambiguation_confidence).toBe(0.88);
+    expect(resolved.items[0]?.decision_source).toBe("rule");
+    expect(resolved.items[0]?.selected_candidate?.id).toBe("usda:1");
+    expect(resolved.items[0]?.disambiguation_confidence).toBe(null);
   });
 
   it("falls back to top candidate when llm selection is invalid", async () => {

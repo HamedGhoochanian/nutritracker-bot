@@ -1,0 +1,142 @@
+[
+  {
+    "id": 1,
+    "description": "One banana, 2 tsp peanut butter, and half a cup of oatmeal with a glass of milk.",
+    "calories": 470,
+    "fiber_g": 8,
+    "protein_g": 16
+  },
+  {
+    "id": 2,
+    "description": "200g chicken breast with 150g rice, 1 tsp butter, and 100g Greek yogurt.",
+    "calories": 620,
+    "fiber_g": 1,
+    "protein_g": 76
+  },
+  {
+    "id": 3,
+    "description": "A handful of walnuts and one apple.",
+    "calories": 290,
+    "fiber_g": 6.5,
+    "protein_g": 5
+  },
+  {
+    "id": 4,
+    "description": "Two scrambled eggs, one slice of whole wheat toast, and a small orange.",
+    "calories": 265,
+    "fiber_g": 4,
+    "protein_g": 17
+  },
+  {
+    "id": 5,
+    "description": "One cup of plain yogurt with half a cup of berries and 1 tbsp honey.",
+    "calories": 254,
+    "fiber_g": 2,
+    "protein_g": 8
+  },
+  {
+    "id": 6,
+    "description": "150g grilled salmon with one medium baked potato and steamed broccoli.",
+    "calories": 520,
+    "fiber_g": 8,
+    "protein_g": 40
+  },
+  {
+    "id": 7,
+    "description": "One turkey sandwich with lettuce, tomato, and a slice of cheese.",
+    "calories": 330,
+    "fiber_g": 2,
+    "protein_g": 27
+  },
+  {
+    "id": 8,
+    "description": "Half a cup of oats cooked with water, topped with one sliced banana.",
+    "calories": 255,
+    "fiber_g": 7,
+    "protein_g": 6
+  },
+  {
+    "id": 9,
+    "description": "2 boiled eggs, one cup cucumber slices, and one small pear.",
+    "calories": 241,
+    "fiber_g": 5,
+    "protein_g": 13
+  },
+  {
+    "id": 10,
+    "description": "180g lean beef with 120g mashed potatoes and green beans.",
+    "calories": 600,
+    "fiber_g": 6,
+    "protein_g": 52
+  },
+  {
+    "id": 11,
+    "description": "One cup cottage cheese with pineapple chunks and 10 almonds.",
+    "calories": 370,
+    "fiber_g": 4,
+    "protein_g": 28
+  },
+  {
+    "id": 12,
+    "description": "150g tofu stir fry with mixed vegetables and 100g rice.",
+    "calories": 390,
+    "fiber_g": 7,
+    "protein_g": 29
+  },
+  {
+    "id": 13,
+    "description": "One bowl lentil soup with one slice of whole grain bread.",
+    "calories": 380,
+    "fiber_g": 14,
+    "protein_g": 18
+  },
+  {
+    "id": 14,
+    "description": "One tuna wrap with lettuce, onion, and a spoon of yogurt dressing.",
+    "calories": 300,
+    "fiber_g": 2,
+    "protein_g": 31
+  },
+  {
+    "id": 15,
+    "description": "One cup chickpea salad with tomato, cucumber, and olive oil.",
+    "calories": 410,
+    "fiber_g": 10,
+    "protein_g": 14
+  },
+  {
+    "id": 16,
+    "description": "2 rice cakes with avocado spread and one boiled egg.",
+    "calories": 240,
+    "fiber_g": 4,
+    "protein_g": 9
+  },
+  {
+    "id": 17,
+    "description": "160g roasted chicken thigh with carrots and half a cup quinoa.",
+    "calories": 540,
+    "fiber_g": 6,
+    "protein_g": 43
+  },
+  {
+    "id": 18,
+    "description": "One smoothie with milk, banana, oats, and peanut butter.",
+    "calories": 425,
+    "fiber_g": 6,
+    "protein_g": 16
+  },
+  {
+    "id": 19,
+    "description": "One bowl pasta with tomato sauce and 30g grated parmesan.",
+    "calories": 510,
+    "fiber_g": 4,
+    "protein_g": 23
+  },
+  {
+    "id": 20,
+    "description": "One cup Greek yogurt with granola and one sliced kiwi.",
+    "calories": 310,
+    "fiber_g": 4,
+    "protein_g": 19
+  }
+]

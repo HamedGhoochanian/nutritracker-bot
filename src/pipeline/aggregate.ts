@@ -2,7 +2,7 @@ import { logger } from "../logger";
 import { NutrientsSchema } from "./types";
 import type { ComputedMeal, Nutrients } from "./types";
 
-const sumNullable = (values: Array<number | null>): number | null => {
+function sumNullable(values: Array<number | null>): number | null {
   let sum = 0;
   let hasValue = false;
 
@@ -20,9 +20,9 @@ const sumNullable = (values: Array<number | null>): number | null => {
   }
 
   return sum;
-};
+}
 
-export const aggregateMealNutrients = (computedMeal: ComputedMeal): Nutrients => {
+export function aggregateMealNutrients(computedMeal: ComputedMeal): Nutrients {
   const totals = NutrientsSchema.parse({
     calories: sumNullable(computedMeal.items.map((item) => item.nutrients_total?.calories ?? null)),
     protein_g: sumNullable(
@@ -33,4 +33,4 @@ export const aggregateMealNutrients = (computedMeal: ComputedMeal): Nutrients =>
 
   logger.debug({ event: "pipeline.aggregate.response", totals });
   return totals;
-};
+}

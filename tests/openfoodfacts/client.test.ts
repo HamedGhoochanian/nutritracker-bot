@@ -92,6 +92,35 @@ describe("OpenFoodFactsClient", () => {
     expect(product?.product_name).toBe("Nutella");
   });
 
+  it("retries twice and succeeds on third attempt", async () => {
+    const client = new OpenFoodFactsClient({ retries: 2, retryDelayMs: 0 });
+    let callCount = 0;
+
+    setMockRequest(client, async () => {
+      callCount += 1;
+      if (callCount < 3) {
+        throw new AxiosError("temporary", "ERR_BAD_RESPONSE", undefined, undefined, {
+          data: { status: 0 },
+          status: 500,
+          statusText: "Internal Server Error",
+          headers: {},
+          config: { headers: new AxiosHeaders() },
+        });
+      }
+
+      return {
+        data: {
+          status: 1,
+          product: { product_name: "Nutella" },
+        },
+      };
+    });
+
+    const product = await client.getProduct("3017624010701");
+    expect(callCount).toBe(3);
+    expect(product?.product_name).toBe("Nutella");
+  });
+
   it("throws OpenFoodFactsApiError on non-retriable error", async () => {
     const client = new OpenFoodFactsClient({ retries: 0 });
 

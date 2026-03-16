@@ -1,5 +1,6 @@
 import axios from "axios";
 import type { AxiosInstance, AxiosRequestConfig } from "axios";
+import { Effect } from "effect";
 import { z } from "zod";
 import { logger } from "../logger";
 import type { LlmClientPort } from "./client";
@@ -37,7 +38,6 @@ export class OpenRouterClient implements LlmClientPort {
   private readonly apiKey: string;
   private readonly model: string;
   private readonly retries: number;
-  private readonly retryDelayMs: number;
 
   constructor(options: LlmClientOptions = {}) {
     let baseUrl = DEFAULT_BASE_URL;
@@ -45,7 +45,7 @@ export class OpenRouterClient implements LlmClientPort {
       baseUrl = options.baseUrl;
     }
 
-    let timeoutMs = 10000;
+    let timeoutMs = 20000;
     if (options.timeoutMs !== undefined) {
       timeoutMs = options.timeoutMs;
     }
@@ -53,11 +53,6 @@ export class OpenRouterClient implements LlmClientPort {
     let retries = 2;
     if (options.retries !== undefined) {
       retries = options.retries;
-    }
-
-    let retryDelayMs = 350;
-    if (options.retryDelayMs !== undefined) {
-      retryDelayMs = options.retryDelayMs;
     }
 
     this.http = axios.create({
@@ -72,7 +67,6 @@ export class OpenRouterClient implements LlmClientPort {
 
     this.model = selectedModel;
     this.retries = retries;
-    this.retryDelayMs = retryDelayMs;
 
     const configuredApiKey = options.apiKey;
     if (configuredApiKey !== undefined) {
@@ -109,36 +103,50 @@ export class OpenRouterClient implements LlmClientPort {
     return JSON.parse(parsedResponse.choices[0].message.content) as unknown;
   }
 
-  private async request<T>(config: AxiosRequestConfig, attempt = 0): Promise<T> {
-    try {
-      const response = await this.http.request<T>(config);
-      return response.data;
-    } catch (error: unknown) {
-      if (!axios.isAxiosError(error)) {
-        throw error;
-      }
+  private async request<T>(config: AxiosRequestConfig): Promise<T> {
+    let retryAttempt = 0;
 
-      const status = error.response?.status;
-      const retriable = status === 429 || (status !== undefined && status >= 500);
-      if (retriable && attempt < this.retries) {
-        const delay = this.retryDelayMs * (attempt + 1);
-        logger.warn({ event: "openrouter.http.retry", url: config.url, status, attempt, delay });
-        await this.sleep(delay);
-        return this.request<T>(config, attempt + 1);
-      }
+    const requestEffect = Effect.tryPromise({
+      try: async () => {
+        const response = await this.http.request<T>(config);
+        return response.data;
+      },
+      catch: (error) => {
+        if (axios.isAxiosError(error)) {
+          return new OpenRouterApiError({
+            message: error.message,
+            status: error.response?.status,
+            url: config.url,
+            payload: error.response?.data,
+          });
+        }
 
-      throw new OpenRouterApiError({
-        message: error.message,
-        status,
-        url: config.url,
-        payload: error.response?.data,
-      });
-    }
-  }
+        if (error instanceof Error) {
+          return new OpenRouterApiError({ message: error.message, url: config.url });
+        }
 
-  private async sleep(ms: number): Promise<void> {
-    await new Promise((resolve) => {
-      setTimeout(resolve, ms);
+        return new OpenRouterApiError({ message: String(error), url: config.url });
+      },
     });
+
+    const retriedEffect = Effect.retry(requestEffect, {
+      times: this.retries,
+      while: (error) => {
+        const retriable =
+          error.status === 429 || (error.status !== undefined && error.status >= 500);
+        if (retriable) {
+          logger.warn({
+            event: "openrouter.http.retry",
+            url: config.url,
+            status: error.status,
+            attempt: retryAttempt,
+          });
+          retryAttempt += 1;
+        }
+        return retriable;
+      },
+    });
+
+    return Effect.runPromise(retriedEffect);
   }
 }

@@ -23,11 +23,16 @@ describe("cli", () => {
     expect(result.stderr).toContain('Usage: bun run src/cli.ts "<meal text>"');
   });
 
-  it("prints result json markers", async () => {
+  it("does not print result markers when initialization fails", async () => {
     const result = await new Promise<{ code: number | null; stdout: string }>((resolve) => {
       const child = spawn("bun", ["run", "src/cli.ts", "one banana"], {
         cwd: process.cwd(),
-        env: { ...process.env, GEMINI_API_KEY: "x", USDA_API_KEY: "x" },
+        env: {
+          ...process.env,
+          OPENROUTER_API_KEY: undefined,
+          GEMINI_API_KEY: "x",
+          USDA_API_KEY: "x",
+        },
       });
 
       let stdout = "";

@@ -1,5 +1,6 @@
 import axios from "axios";
 import type { AxiosInstance, AxiosRequestConfig } from "axios";
+import { Effect, Schedule } from "effect";
 import { logger } from "../logger";
 import type {
   UsdaFoodApiErrorOptions,
@@ -147,42 +148,72 @@ export class UsdaFoodClient implements UsdaFoodClientPort {
     });
   }
 
-  private async request<T>(config: AxiosRequestConfig, attempt = 0): Promise<T> {
+  private async request<T>(config: AxiosRequestConfig): Promise<T> {
     const apiKey = this.requireApiKey(config.url);
+    let attempt = 0;
 
-    try {
-      logger.debug({ event: "usda.http.request", url: config.url, attempt });
-      const response = await this.http.request<T>({
-        ...config,
-        params: {
-          ...(config.params as Record<string, unknown> | undefined),
-          api_key: apiKey,
-        },
-      });
-      logger.debug({ event: "usda.http.response", url: config.url, status: response.status });
-      return response.data;
-    } catch (error: unknown) {
-      if (!axios.isAxiosError(error)) {
-        throw error;
-      }
+    const requestEffect = Effect.tryPromise({
+      try: async () => {
+        logger.debug({ event: "usda.http.request", url: config.url, attempt });
+        const response = await this.http.request<T>({
+          ...config,
+          params: {
+            ...(config.params as Record<string, unknown> | undefined),
+            api_key: apiKey,
+          },
+        });
+        logger.debug({ event: "usda.http.response", url: config.url, status: response.status });
+        return response.data;
+      },
+      catch: (error) => {
+        if (axios.isAxiosError(error)) {
+          return new UsdaFoodApiError({
+            message: error.message,
+            status: error.response?.status,
+            url: config.url,
+            payload: error.response?.data,
+          });
+        }
 
-      const status = error.response?.status;
-      const retriable = status === 429 || (status !== undefined && status >= 500);
-      if (retriable && attempt < this.retries) {
-        const delay = this.retryDelayMs * (attempt + 1);
-        logger.warn({ event: "usda.http.retry", url: config.url, status, attempt, delay });
-        await this.sleep(delay);
-        return this.request<T>(config, attempt + 1);
-      }
+        if (error instanceof Error) {
+          return new UsdaFoodApiError({ message: error.message, url: config.url });
+        }
 
-      logger.error({ event: "usda.http.failed", url: config.url, status });
-      throw new UsdaFoodApiError({
-        message: error.message || "USDA FoodData Central request failed",
-        status,
-        url: config.url,
-        payload: error.response?.data,
-      });
+        return new UsdaFoodApiError({ message: String(error), url: config.url });
+      },
+    });
+
+    const retriedEffect = Effect.retry(requestEffect, {
+      times: this.retries,
+      schedule: Schedule.fixed(`${this.retryDelayMs} millis`),
+      while: (error) => {
+        let retriable = false;
+        if (error.status === 429) {
+          retriable = true;
+        }
+        if (error.status !== undefined && error.status >= 500) {
+          retriable = true;
+        }
+        if (retriable) {
+          logger.warn({
+            event: "usda.http.retry",
+            url: config.url,
+            status: error.status,
+            attempt,
+          });
+          attempt += 1;
+        }
+        return retriable;
+      },
+    });
+
+    const result = await Effect.runPromise(Effect.either(retriedEffect));
+    if (result._tag === "Right") {
+      return result.right;
     }
+
+    logger.error({ event: "usda.http.failed", url: config.url, status: result.left.status });
+    throw result.left;
   }
 
   private normalizeQueryParams(
@@ -224,12 +255,6 @@ export class UsdaFoodClient implements UsdaFoodClientPort {
     throw new UsdaFoodApiError({
       message: "USDA API key is required",
       url,
-    });
-  }
-
-  private async sleep(ms: number): Promise<void> {
-    await new Promise((resolve) => {
-      setTimeout(resolve, ms);
     });
   }
 }

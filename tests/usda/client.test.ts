@@ -110,6 +110,36 @@ describe("UsdaFoodClient", () => {
     expect(food?.description).toBe("Strawberries, raw");
   });
 
+  it("retries twice and succeeds on third attempt", async () => {
+    const client = new UsdaFoodClient({ apiKey: "test-key", retries: 2, retryDelayMs: 0 });
+    let callCount = 0;
+
+    setMockRequest(client, async () => {
+      callCount += 1;
+      if (callCount < 3) {
+        throw new AxiosError("temporary failure", "ERR_BAD_RESPONSE", undefined, undefined, {
+          data: { error: "temporary" },
+          status: 500,
+          statusText: "Internal Server Error",
+          headers: {},
+          config: { headers: new AxiosHeaders() },
+        });
+      }
+
+      return {
+        data: {
+          fdcId: 747448,
+          dataType: "Foundation",
+          description: "Strawberries, raw",
+        },
+      };
+    });
+
+    const food = await client.getFood(747448);
+    expect(callCount).toBe(3);
+    expect(food?.description).toBe("Strawberries, raw");
+  });
+
   it("throws when api key is missing", async () => {
     const client = new UsdaFoodClient({ apiKey: "", retries: 0 });
 
