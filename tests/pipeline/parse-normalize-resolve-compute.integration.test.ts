@@ -15,6 +15,8 @@ describe("pipeline parse -> normalize -> resolve -> compute integration", () => 
                 food_name: "whole milk",
                 quantity: 400,
                 unit: "ml",
+                normalized_quantity: 400,
+                normalized_unit: "ml",
                 preparation: null,
                 brand: null,
                 is_branded_guess: false,
@@ -24,6 +26,8 @@ describe("pipeline parse -> normalize -> resolve -> compute integration", () => 
                 food_name: "banana",
                 quantity: 1,
                 unit: "piece",
+                normalized_quantity: 1,
+                normalized_unit: "piece",
                 preparation: null,
                 brand: null,
                 is_branded_guess: false,
@@ -33,7 +37,21 @@ describe("pipeline parse -> normalize -> resolve -> compute integration", () => 
           };
         }
 
-        return { selected_candidate_id: "usda:banana", confidence: 0.9 };
+        if (prompt.includes('"food_name": "whole milk"')) {
+          return {
+            calories_per_100: 62,
+            protein_g_per_100: 3.3,
+            fiber_g_per_100: 0,
+            confidence: 0.9,
+          };
+        }
+
+        return {
+          calories_per_100: 89,
+          protein_g_per_100: 1.1,
+          fiber_g_per_100: 2.6,
+          confidence: 0.9,
+        };
       },
     };
 

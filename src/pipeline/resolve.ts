@@ -19,6 +19,62 @@ const DISAMBIGUATION_PROMPT = [
   "Pick one candidate id from the provided candidates.",
 ].join("\n");
 
+const NUTRITION_ESTIMATE_SCHEMA = z.object({
+  calories_per_100: z.number().nonnegative().nullable(),
+  protein_g_per_100: z.number().nonnegative().nullable(),
+  fiber_g_per_100: z.number().nonnegative().nullable(),
+  confidence: z.number().min(0).max(1),
+});
+
+const NUTRITION_ESTIMATE_PROMPT = [
+  "Estimate nutrition for a food item and return JSON only.",
+  "Schema:",
+  '{"calories_per_100":123.4,"protein_g_per_100":3.2,"fiber_g_per_100":2.1,"confidence":0.8}',
+  "Rules:",
+  "- values are per 100g or per 100ml according to unit",
+  "- for piece items, still estimate as if converted to weight basis per 100g",
+  "- use null when unknown",
+  "- confidence must be 0..1",
+  "- no markdown",
+].join("\n");
+
+const estimateNutrientsWithLlm = async (
+  item: NormalizedMeal["items"][number],
+  llmClient: LlmClientPort,
+): Promise<ResolvedCandidate> => {
+  const payload = await llmClient.generateJson(
+    `${NUTRITION_ESTIMATE_PROMPT}\nInput:\n${JSON.stringify(
+      {
+        food_name: item.food_name,
+        quantity: item.quantity,
+        unit: item.unit,
+        original_quantity: item.original_quantity,
+        original_unit: item.original_unit,
+        preparation: item.preparation,
+        brand: item.brand,
+      },
+      null,
+      2,
+    )}`,
+  );
+  const parsed = NUTRITION_ESTIMATE_SCHEMA.parse(payload);
+
+  return {
+    id: `llm:${item.food_name}`,
+    source: "llm",
+    name: item.food_name,
+    brand: item.brand,
+    score: parsed.confidence,
+    raw: {
+      nutriments: {
+        "energy-kcal_100g": parsed.calories_per_100,
+        proteins_100g: parsed.protein_g_per_100,
+        fiber_100g: parsed.fiber_g_per_100,
+      },
+    },
+  };
+};
+
 const normalizeFoodText = (value: string): string => {
   return value.toLowerCase().replace(/[_-]+/g, " ");
 };
@@ -235,100 +291,9 @@ const resolveItem = async (
     query,
   });
 
-  logger.debug({ event: "pipeline.resolve.usda.search.request", query });
-  const usdaSearch = await usdaClient.searchFoods({ query, pageSize: 8 });
-  logger.debug({
-    event: "pipeline.resolve.usda.search.response",
-    query,
-    count: usdaSearch.foods?.length ?? 0,
-  });
-
-  logger.debug({ event: "pipeline.resolve.off.search.request", query });
-  const offSearch = await offClient.searchProducts({
-    search_terms: query,
-    page: 1,
-    page_size: 8,
-    fields: ["code", "product_name", "brands"],
-  });
-  logger.debug({
-    event: "pipeline.resolve.off.search.response",
-    query,
-    count: offSearch.products?.length ?? 0,
-  });
-
-  const usdaFoodsRaw = usdaSearch.foods;
-  const usdaFoods = usdaFoodsRaw === undefined ? [] : usdaFoodsRaw;
-  const offProductsRaw = offSearch.products;
-  const offProducts = offProductsRaw === undefined ? [] : offProductsRaw;
-
-  const candidates = [...toUsdaCandidates(usdaFoods, item), ...toOffCandidates(offProducts, item)]
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 5);
-
-  logger.debug({
-    event: "pipeline.resolve.candidates.scored",
-    foodName: item.food_name,
-    query,
-    candidates: candidates.map((candidate) => ({
-      id: candidate.id,
-      source: candidate.source,
-      name: candidate.name,
-      brand: candidate.brand,
-      score: candidate.score,
-    })),
-  });
-
-  if (candidates.length === 0) {
-    logger.debug({ event: "pipeline.resolve.selected", foodName: item.food_name, selected: null });
-    return {
-      ...item,
-      top_candidates: [],
-      selected_candidate: null,
-      decision_source: "none",
-      disambiguation_confidence: null,
-    };
-  }
-
-  const ambiguous = isAmbiguous(candidates);
-  logger.debug({
-    event: "pipeline.resolve.ambiguous",
-    foodName: item.food_name,
-    ambiguous,
-    top1: candidates[0]?.score,
-    top2: candidates[1]?.score,
-  });
-
-  if (!ambiguous) {
-    const selected = candidates[0] ?? null;
-    logger.debug({
-      event: "pipeline.resolve.selected",
-      foodName: item.food_name,
-      decisionSource: "rule",
-      selectedCandidateId: selected?.id,
-    });
-    return {
-      ...item,
-      top_candidates: candidates,
-      selected_candidate: selected,
-      decision_source: "rule",
-      disambiguation_confidence: null,
-    };
-  }
-
-  logger.debug({
-    event: "pipeline.resolve.llm.request",
-    foodName: item.food_name,
-    candidateCount: candidates.length,
-  });
-  let llmSelection: { selectedId: string; confidence: number } | null = null;
+  let llmCandidate: ResolvedCandidate | null = null;
   try {
-    llmSelection = await disambiguateWithLlm(item, candidates, llmClient);
-    logger.debug({
-      event: "pipeline.resolve.llm.response",
-      foodName: item.food_name,
-      selectedCandidateId: llmSelection.selectedId,
-      confidence: llmSelection.confidence,
-    });
+    llmCandidate = await estimateNutrientsWithLlm(item, llmClient);
   } catch (error: unknown) {
     logger.warn({
       event: "pipeline.resolve.llm.failed",
@@ -337,16 +302,10 @@ const resolveItem = async (
     });
   }
 
-  const llmSelected = candidates.find((candidate) => candidate.id === llmSelection?.selectedId);
-  const topCandidate = candidates[0] ?? null;
-  const llmSelectionTooLow =
-    llmSelected !== undefined &&
-    topCandidate !== null &&
-    topCandidate.score - llmSelected.score > 0.05;
-  const selected = llmSelectionTooLow ? topCandidate : (llmSelected ?? topCandidate);
-  const decisionSource = llmSelected === undefined || llmSelectionTooLow ? "rule" : "llm";
-  const disambiguationConfidence =
-    llmSelected === undefined || llmSelectionTooLow ? null : (llmSelection?.confidence ?? null);
+  const candidates = llmCandidate === null ? [] : [llmCandidate];
+  const selected = llmCandidate;
+  const decisionSource = llmCandidate === null ? "none" : "llm";
+  const disambiguationConfidence = llmCandidate === null ? null : llmCandidate.score;
 
   logger.debug({
     event: "pipeline.resolve.selected",

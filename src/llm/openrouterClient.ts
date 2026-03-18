@@ -94,6 +94,7 @@ export class OpenRouterClient implements LlmClientPort {
       data: {
         model: this.model,
         messages: [{ role: "user", content: prompt }],
+        provider: { sort: "latency" },
         response_format: { type: "json_object" },
       },
     });

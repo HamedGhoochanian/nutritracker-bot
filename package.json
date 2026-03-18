@@ -7,6 +7,7 @@
     "start": "bun run src/index.ts",
     "dev": "bun --watch src/index.ts",
     "cli": "bun run src/cli.ts",
+    "worktree:add": "bash scripts/worktree-add.sh",
     "test": "jest",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",

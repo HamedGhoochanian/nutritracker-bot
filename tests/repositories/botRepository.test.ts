@@ -18,6 +18,8 @@ describe("BotRepository", () => {
             food_name: "banana",
             quantity: 1,
             unit: "piece",
+            normalized_quantity: 1,
+            normalized_unit: "piece",
             preparation: null,
             brand: null,
             is_branded_guess: false,

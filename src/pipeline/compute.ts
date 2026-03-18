@@ -168,7 +168,7 @@ const computeItem = (item: ResolvedMealItem): ComputedMealItem => {
     nutrientsPer100 = extractUsdaNutrientsPer100(item);
   }
 
-  if (selected.source === "off") {
+  if (selected.source === "off" || selected.source === "llm") {
     nutrientsPer100 = extractOffNutrientsPer100(item);
   }
 

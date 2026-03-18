@@ -1,9 +1,13 @@
 import { z } from "zod";
 
+export const NormalizedUnitSchema = z.enum(["g", "ml", "piece"]);
+
 export const ParsedMealItemSchema = z.object({
   food_name: z.string().min(1),
   quantity: z.number().positive(),
   unit: z.string().min(1),
+  normalized_quantity: z.number().positive(),
+  normalized_unit: NormalizedUnitSchema,
   preparation: z.string().nullable(),
   brand: z.string().nullable(),
   is_branded_guess: z.boolean(),
@@ -13,8 +17,6 @@ export const ParsedMealItemSchema = z.object({
 export const ParsedMealSchema = z.object({
   items: z.array(ParsedMealItemSchema).min(1),
 });
-
-export const NormalizedUnitSchema = z.enum(["g", "ml", "piece"]);
 
 export const NormalizedMealItemSchema = z.object({
   food_name: z.string().min(1),
@@ -32,7 +34,7 @@ export const NormalizedMealSchema = z.object({
   items: z.array(NormalizedMealItemSchema).min(1),
 });
 
-export const CandidateSourceSchema = z.enum(["usda", "off"]);
+export const CandidateSourceSchema = z.enum(["usda", "off", "llm"]);
 
 export const ResolvedCandidateSchema = z.object({
   id: z.string().min(1),

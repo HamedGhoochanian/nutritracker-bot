@@ -26,3 +26,4 @@ THIS PROJECT USES BUN
 - LLM providers are swappable through a shared client port.
 - Use zod schemas for runtime validation at module boundaries.
 - Persist compact pipeline artifacts only; do not store full external API payloads.
+- Use `bun run worktree:add <branch-name>` to create a Git worktree under `.worktrees/`.

@@ -14,6 +14,8 @@ describe("pipeline parse -> normalize -> resolve integration", () => {
                 food_name: "whole milk",
                 quantity: 400,
                 unit: "ml",
+                normalized_quantity: 400,
+                normalized_unit: "ml",
                 preparation: null,
                 brand: null,
                 is_branded_guess: false,
@@ -23,6 +25,8 @@ describe("pipeline parse -> normalize -> resolve integration", () => {
                 food_name: "banana",
                 quantity: 1,
                 unit: "piece",
+                normalized_quantity: 1,
+                normalized_unit: "piece",
                 preparation: null,
                 brand: null,
                 is_branded_guess: false,
@@ -32,6 +36,8 @@ describe("pipeline parse -> normalize -> resolve integration", () => {
                 food_name: "peanut butter",
                 quantity: 1,
                 unit: "tbsp",
+                normalized_quantity: 16,
+                normalized_unit: "g",
                 preparation: null,
                 brand: null,
                 is_branded_guess: false,
@@ -41,7 +47,12 @@ describe("pipeline parse -> normalize -> resolve integration", () => {
           };
         }
 
-        return { selected_candidate_id: "off:pb1", confidence: 0.87 };
+        return {
+          calories_per_100: 120,
+          protein_g_per_100: 4,
+          fiber_g_per_100: 2,
+          confidence: 0.87,
+        };
       },
     };
 
@@ -92,8 +103,8 @@ describe("pipeline parse -> normalize -> resolve integration", () => {
     );
 
     expect(resolved.items).toHaveLength(3);
-    expect(resolved.items[0]?.selected_candidate?.id).toBe("usda:10");
-    expect(resolved.items[1]?.selected_candidate?.id).toBe("usda:20");
-    expect(resolved.items[2]?.selected_candidate?.id).toBe("usda:30");
+    expect(resolved.items[0]?.selected_candidate?.source).toBe("llm");
+    expect(resolved.items[1]?.selected_candidate?.source).toBe("llm");
+    expect(resolved.items[2]?.selected_candidate?.source).toBe("llm");
   });
 });

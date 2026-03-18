@@ -16,6 +16,8 @@ describe("MealPipeline", () => {
                 food_name: "banana",
                 quantity: 1,
                 unit: "piece",
+                normalized_quantity: 1,
+                normalized_unit: "piece",
                 preparation: null,
                 brand: null,
                 is_branded_guess: false,
@@ -25,7 +27,12 @@ describe("MealPipeline", () => {
           };
         }
 
-        return { selected_candidate_id: "usda:2", confidence: 0.9 };
+        return {
+          calories_per_100: 89,
+          protein_g_per_100: 1.1,
+          fiber_g_per_100: 2.6,
+          confidence: 0.9,
+        };
       },
     };
 
@@ -54,6 +61,7 @@ describe("MealPipeline", () => {
     const repository = await BotRepository.create(dbPath);
     const pipeline = new MealPipeline({
       llmClient,
+      nutritionLlmClient: llmClient,
       usdaClient: usdaClient as never,
       offClient: offClient as never,
       repository,
@@ -83,6 +91,8 @@ describe("MealPipeline", () => {
                 food_name: "banana",
                 quantity: 1,
                 unit: "piece",
+                normalized_quantity: 1,
+                normalized_unit: "piece",
                 preparation: null,
                 brand: null,
                 is_branded_guess: false,
@@ -92,7 +102,12 @@ describe("MealPipeline", () => {
           };
         }
 
-        return { selected_candidate_id: "usda:2", confidence: 0.9 };
+        return {
+          calories_per_100: 89,
+          protein_g_per_100: 1.1,
+          fiber_g_per_100: 2.6,
+          confidence: 0.9,
+        };
       },
     };
 
@@ -121,6 +136,7 @@ describe("MealPipeline", () => {
     const repository = await BotRepository.create(dbPath);
     const pipeline = new MealPipeline({
       llmClient,
+      nutritionLlmClient: llmClient,
       usdaClient: usdaClient as never,
       offClient: offClient as never,
       repository,

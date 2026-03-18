@@ -2,22 +2,20 @@ import { describe, expect, it } from "@jest/globals";
 import { resolveNormalizedMeal } from "../../src/pipeline/resolve";
 
 describe("resolveNormalizedMeal", () => {
-  it("uses rule selection when top candidate is clear", async () => {
+  it("builds one llm nutrient candidate per item", async () => {
     const usdaClient = {
-      searchFoods: async () => ({
-        foods: [
-          { fdcId: 1, description: "Banana, raw" },
-          { fdcId: 2, description: "Apple, raw" },
-        ],
-      }),
+      searchFoods: async () => ({ foods: [] }),
     };
     const offClient = {
-      searchProducts: async () => ({
-        products: [{ code: "111", product_name: "Banana chips", brands: "SnackCo" }],
-      }),
+      searchProducts: async () => ({ products: [] }),
     };
-    const geminiClient = {
-      generateJson: async () => ({ selected_candidate_id: "off:111", confidence: 0.7 }),
+    const llmClient = {
+      generateJson: async () => ({
+        calories_per_100: 89,
+        protein_g_per_100: 1.1,
+        fiber_g_per_100: 2.6,
+        confidence: 0.92,
+      }),
     };
 
     const resolved = await resolveNormalizedMeal(
@@ -38,119 +36,44 @@ describe("resolveNormalizedMeal", () => {
       },
       usdaClient as never,
       offClient as never,
-      geminiClient,
+      llmClient,
     );
 
-    expect(resolved.items[0]?.decision_source).toBe("rule");
-    expect(resolved.items[0]?.selected_candidate?.id).toBe("usda:1");
-    expect(resolved.items[0]?.top_candidates[0]?.source).toBe("usda");
+    expect(resolved.items[0]?.decision_source).toBe("llm");
+    expect(resolved.items[0]?.selected_candidate?.source).toBe("llm");
+    expect(resolved.items[0]?.selected_candidate?.raw.nutriments).toEqual({
+      "energy-kcal_100g": 89,
+      proteins_100g: 1.1,
+      fiber_100g: 2.6,
+    });
+    expect(resolved.items[0]?.top_candidates).toHaveLength(1);
   });
 
-  it("falls back to rule selection when llm picks a lower-scored candidate", async () => {
+  it("returns none when llm nutrient response is invalid", async () => {
     const usdaClient = {
-      searchFoods: async () => ({ foods: [{ fdcId: 1, description: "Yogurt, plain" }] }),
-    };
-    const offClient = {
-      searchProducts: async () => ({
-        products: [
-          { code: "111", product_name: "Greek Yogurt", brands: "BrandA" },
-          { code: "222", product_name: "Yoghurt Natural", brands: "BrandB" },
-        ],
-      }),
-    };
-    const geminiClient = {
-      generateJson: async () => ({ selected_candidate_id: "off:111", confidence: 0.88 }),
-    };
-
-    const resolved = await resolveNormalizedMeal(
-      {
-        items: [
-          {
-            food_name: "yogurt parfait",
-            quantity: 200,
-            unit: "g",
-            original_quantity: 200,
-            original_unit: "g",
-            preparation: null,
-            brand: null,
-            is_branded_guess: false,
-            confidence: 0.8,
-          },
-        ],
-      },
-      usdaClient as never,
-      offClient as never,
-      geminiClient,
-    );
-
-    expect(resolved.items[0]?.decision_source).toBe("rule");
-    expect(resolved.items[0]?.selected_candidate?.id).toBe("usda:1");
-    expect(resolved.items[0]?.disambiguation_confidence).toBe(null);
-  });
-
-  it("falls back to top candidate when llm selection is invalid", async () => {
-    const usdaClient = {
-      searchFoods: async () => ({ foods: [{ fdcId: 1, description: "Milk, whole" }] }),
-    };
-    const offClient = {
-      searchProducts: async () => ({
-        products: [{ code: "111", product_name: "Whole Milk", brands: "BrandM" }],
-      }),
-    };
-    const geminiClient = {
-      generateJson: async () => ({ selected_candidate_id: "off:999", confidence: 0.9 }),
-    };
-
-    const resolved = await resolveNormalizedMeal(
-      {
-        items: [
-          {
-            food_name: "whole milk",
-            quantity: 400,
-            unit: "ml",
-            original_quantity: 400,
-            original_unit: "ml",
-            preparation: null,
-            brand: null,
-            is_branded_guess: false,
-            confidence: 0.9,
-          },
-        ],
-      },
-      usdaClient as never,
-      offClient as never,
-      geminiClient,
-    );
-
-    expect(resolved.items[0]?.decision_source).toBe("rule");
-    expect(resolved.items[0]?.selected_candidate?.id).toBe("usda:1");
-    expect(resolved.items[0]?.top_candidates).toHaveLength(2);
-  });
-
-  it("normalizes separators before search", async () => {
-    let queryUsed = "";
-    const usdaClient = {
-      searchFoods: async ({ query }: { query: string }) => {
-        queryUsed = query;
-        return { foods: [{ fdcId: 9, description: "Peanut butter, smooth" }] };
-      },
+      searchFoods: async () => ({ foods: [] }),
     };
     const offClient = {
       searchProducts: async () => ({ products: [] }),
     };
-    const geminiClient = {
-      generateJson: async () => ({ selected_candidate_id: "usda:9", confidence: 0.9 }),
+    const llmClient = {
+      generateJson: async () => ({
+        calories_per_100: -1,
+        protein_g_per_100: 1,
+        fiber_g_per_100: 1,
+        confidence: 0.5,
+      }),
     };
 
     const resolved = await resolveNormalizedMeal(
       {
         items: [
           {
-            food_name: "pure peanut-butter",
-            quantity: 15,
-            unit: "ml",
+            food_name: "apple",
+            quantity: 1,
+            unit: "piece",
             original_quantity: 1,
-            original_unit: "tbsp",
+            original_unit: "piece",
             preparation: null,
             brand: null,
             is_branded_guess: false,
@@ -160,10 +83,11 @@ describe("resolveNormalizedMeal", () => {
       },
       usdaClient as never,
       offClient as never,
-      geminiClient,
+      llmClient,
     );
 
-    expect(queryUsed).toBe("pure peanut butter");
-    expect(resolved.items[0]?.selected_candidate?.id).toBe("usda:9");
+    expect(resolved.items[0]?.decision_source).toBe("none");
+    expect(resolved.items[0]?.selected_candidate).toBe(null);
+    expect(resolved.items[0]?.top_candidates).toHaveLength(0);
   });
 });

@@ -18,6 +18,7 @@ const main = async (): Promise<void> => {
   }
 
   const llmClient = new OpenRouterClient();
+  const nutritionLlmClient = new OpenRouterClient({ model: "google/gemini-3-flash-preview" });
   const usdaClient = new UsdaFoodClient();
   const offClient = new OpenFoodFactsClient();
 
@@ -29,6 +30,7 @@ const main = async (): Promise<void> => {
   const repository = await BotRepository.create(dbPath);
   const pipeline = new MealPipeline({
     llmClient,
+    nutritionLlmClient,
     usdaClient,
     offClient,
     repository,

@@ -11,6 +11,8 @@ describe("pipeline parse -> normalize integration", () => {
             food_name: "whole milk",
             quantity: 1,
             unit: "cup",
+            normalized_quantity: 240,
+            normalized_unit: "ml",
             preparation: null,
             brand: null,
             is_branded_guess: false,
@@ -20,6 +22,8 @@ describe("pipeline parse -> normalize integration", () => {
             food_name: "banana",
             quantity: 1,
             unit: "piece",
+            normalized_quantity: 1,
+            normalized_unit: "piece",
             preparation: null,
             brand: null,
             is_branded_guess: false,
@@ -29,6 +33,8 @@ describe("pipeline parse -> normalize integration", () => {
             food_name: "peanut butter",
             quantity: 1,
             unit: "tbsp",
+            normalized_quantity: 16,
+            normalized_unit: "g",
             preparation: null,
             brand: null,
             is_branded_guess: false,
@@ -54,7 +60,7 @@ describe("pipeline parse -> normalize integration", () => {
     ).toEqual([
       { food_name: "whole milk", quantity: 240, unit: "ml" },
       { food_name: "banana", quantity: 1, unit: "piece" },
-      { food_name: "peanut butter", quantity: 15, unit: "ml" },
+      { food_name: "peanut butter", quantity: 16, unit: "g" },
     ]);
   });
 });
