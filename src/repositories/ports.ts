@@ -1,16 +1,9 @@
-import type { SavedMeal, SubmittedItem } from "./types";
+import type { SaveMealInput, SavedConsumption, SavedMeal } from "./types";
 
-export interface ItemRepositoryPort {
-  saveSubmittedItem(entry: SubmittedItem): Promise<void>;
-  listSubmittedItems(): Promise<SubmittedItem[]>;
-  deleteSubmittedItemByAliasOrBarcode(query: string): Promise<SubmittedItem | null>;
-  findSubmittedItemByAlias(alias: string): Promise<{ item: SubmittedItem; index: number } | null>;
-  updateSubmittedItemAtIndex(index: number, entry: SubmittedItem): Promise<void>;
+export interface BotRepositoryPort {
+  saveMeal(input: SaveMealInput): Promise<SavedMeal>;
+  getMeals(): Promise<SavedMeal[]>;
+  findMealByText(mealText: string): Promise<SavedMeal | null>;
+  saveConsumption(mealId: string): Promise<SavedConsumption>;
+  getConsumption(): Promise<SavedConsumption[]>;
 }
-
-export interface MealRepositoryPort {
-  saveMeal(entry: SavedMeal): Promise<void>;
-  findMealByName(name: string): Promise<SavedMeal | null>;
-}
-
-export interface BotRepositoryPort extends ItemRepositoryPort, MealRepositoryPort {}

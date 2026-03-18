@@ -1,5 +1,6 @@
 import axios from "axios";
 import type { AxiosInstance, AxiosRequestConfig } from "axios";
+import { Effect, Schedule } from "effect";
 import { logger } from "../logger";
 import type {
   OffEntityResponse,
@@ -161,39 +162,59 @@ export class OpenFoodFactsClient implements OpenFoodFactsClientPort {
     });
   }
 
-  private async request<T>(config: AxiosRequestConfig, attempt = 0): Promise<T> {
-    try {
-      logger.debug({ event: "off.http.request", url: config.url, attempt });
-      const response = await this.http.request<T>(config);
-      logger.debug({ event: "off.http.response", url: config.url, status: response.status });
-      return response.data;
-    } catch (error: unknown) {
-      if (!axios.isAxiosError(error)) {
-        throw error;
-      }
+  private async request<T>(config: AxiosRequestConfig): Promise<T> {
+    let attempt = 0;
 
-      const status = error.response?.status;
-      const retriable = status === 429 || (status !== undefined && status >= 500);
-      if (retriable && attempt < this.retries) {
-        const delay = this.retryDelayMs * (attempt + 1);
-        logger.warn({ event: "off.http.retry", url: config.url, status, attempt, delay });
-        await this.sleep(delay);
-        return this.request<T>(config, attempt + 1);
-      }
+    const requestEffect = Effect.tryPromise({
+      try: async () => {
+        logger.debug({ event: "off.http.request", url: config.url, attempt });
+        const response = await this.http.request<T>(config);
+        logger.debug({ event: "off.http.response", url: config.url, status: response.status });
+        return response.data;
+      },
+      catch: (error) => {
+        if (axios.isAxiosError(error)) {
+          return new OpenFoodFactsApiError({
+            message: error.message,
+            status: error.response?.status,
+            url: config.url,
+            payload: error.response?.data,
+          });
+        }
 
-      logger.error({ event: "off.http.failed", url: config.url, status });
-      throw new OpenFoodFactsApiError({
-        message: error.message || "Open Food Facts request failed",
-        status,
-        url: config.url,
-        payload: error.response?.data,
-      });
-    }
-  }
+        if (error instanceof Error) {
+          return new OpenFoodFactsApiError({ message: error.message, url: config.url });
+        }
 
-  private async sleep(ms: number): Promise<void> {
-    await new Promise((resolve) => {
-      setTimeout(resolve, ms);
+        return new OpenFoodFactsApiError({ message: String(error), url: config.url });
+      },
     });
+
+    const retriedEffect = Effect.retry(requestEffect, {
+      times: this.retries,
+      schedule: Schedule.fixed(`${this.retryDelayMs} millis`),
+      while: (error) => {
+        const retriable =
+          error.status === 429 || (error.status !== undefined && error.status >= 500);
+        if (retriable) {
+          logger.warn({
+            event: "off.http.retry",
+            url: config.url,
+            status: error.status,
+            attempt,
+          });
+          attempt += 1;
+        }
+        return retriable;
+      },
+    });
+
+    const result = await Effect.runPromise(Effect.either(retriedEffect));
+    if (result._tag === "Right") {
+      return result.right;
+    }
+
+    logger.error({ event: "off.http.failed", url: config.url, status: result.left.status });
+    throw result.left;
   }
 }

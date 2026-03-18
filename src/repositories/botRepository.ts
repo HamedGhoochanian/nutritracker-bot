@@ -1,138 +1,166 @@
-import { JSONFilePreset } from "lowdb/node";
+import { Database } from "bun:sqlite";
+import { logger } from "../logger";
 import type { BotRepositoryPort } from "./ports";
-import type { LoggedMessage, SavedMeal, SavedProduct, SubmittedItem } from "./types";
+import { SaveMealInputSchema, SavedConsumptionSchema, SavedMealSchema } from "./types";
+import type { SaveMealInput, SavedConsumption, SavedMeal } from "./types";
 
-type DbSchema = {
-  messages: LoggedMessage[];
-  products: SavedProduct[];
-  submittedItems: SubmittedItem[];
-  meals: SavedMeal[];
+type MealRow = {
+  id: string;
+  meal_text: string;
+  pipeline_json: string;
+  created_at: string;
+};
+
+type ConsumptionRow = {
+  id: string;
+  meal_id: string;
+  consumed_at: string;
+};
+
+type PipelinePayload = {
+  parsed: SaveMealInput["parsed"];
+  normalized: SaveMealInput["normalized"];
+  resolved: SaveMealInput["resolved"];
+  computed: SaveMealInput["computed"];
+  totals: SaveMealInput["totals"];
 };
 
 export class BotRepository implements BotRepositoryPort {
-  private constructor(private readonly db: Awaited<ReturnType<typeof JSONFilePreset<DbSchema>>>) {}
+  private constructor(private readonly db: Database) {}
 
-  static async create(dbPath = "db.json"): Promise<BotRepository> {
-    const db = await JSONFilePreset<DbSchema>(dbPath, {
-      messages: [],
-      products: [],
-      submittedItems: [],
-      meals: [],
-    });
+  static async create(dbPath = "db.sqlite"): Promise<BotRepository> {
+    const db = new Database(dbPath);
+    db.exec("PRAGMA foreign_keys = ON");
+    db.exec("PRAGMA journal_mode = WAL");
+    db.exec("PRAGMA busy_timeout = 5000");
+
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS meals (
+        id TEXT PRIMARY KEY,
+        meal_text TEXT NOT NULL,
+        pipeline_json TEXT NOT NULL CHECK (json_valid(pipeline_json)),
+        created_at TEXT NOT NULL
+      ) STRICT
+    `);
+
+    db.exec(`
+      CREATE UNIQUE INDEX IF NOT EXISTS meals_meal_text_uq
+      ON meals(meal_text)
+    `);
+
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS consumption (
+        id TEXT PRIMARY KEY,
+        meal_id TEXT NOT NULL,
+        consumed_at TEXT NOT NULL,
+        FOREIGN KEY (meal_id) REFERENCES meals(id) ON DELETE CASCADE
+      ) STRICT
+    `);
+
+    db.exec(`
+      CREATE INDEX IF NOT EXISTS consumption_time_idx
+      ON consumption(consumed_at DESC)
+    `);
+
+    db.exec(`
+      CREATE INDEX IF NOT EXISTS consumption_meal_time_idx
+      ON consumption(meal_id, consumed_at DESC)
+    `);
+
     const repo = new BotRepository(db);
-    await repo.ensureSchema();
     return repo;
   }
 
-  async saveProduct(entry: SavedProduct): Promise<void> {
-    this.db.data.products.push(entry);
-    await this.db.write();
+  private mapMealRow(row: MealRow): SavedMeal {
+    const parsedPipeline = JSON.parse(row.pipeline_json) as PipelinePayload;
+    const meal = SavedMealSchema.parse({
+      id: row.id,
+      meal_text: row.meal_text,
+      parsed: parsedPipeline.parsed,
+      normalized: parsedPipeline.normalized,
+      resolved: parsedPipeline.resolved,
+      computed: parsedPipeline.computed,
+      totals: parsedPipeline.totals,
+      created_at: row.created_at,
+    });
+    return meal;
   }
 
-  async saveSubmittedItem(entry: SubmittedItem): Promise<void> {
-    this.db.data.submittedItems.push(entry);
-    await this.db.write();
-  }
+  async saveMeal(input: SaveMealInput): Promise<SavedMeal> {
+    const payload = SaveMealInputSchema.parse(input);
 
-  async listSubmittedItems(): Promise<SubmittedItem[]> {
-    return [...this.db.data.submittedItems];
-  }
+    const meal = {
+      id: crypto.randomUUID(),
+      meal_text: payload.meal_text,
+      pipeline_json: JSON.stringify({
+        parsed: payload.parsed,
+        normalized: payload.normalized,
+        resolved: payload.resolved,
+        computed: payload.computed,
+        totals: payload.totals,
+      }),
+      created_at: new Date().toISOString(),
+    };
 
-  async deleteSubmittedItemByAliasOrBarcode(query: string): Promise<SubmittedItem | null> {
-    const normalized = query.trim();
-    if (!normalized) {
-      return null;
-    }
-
-    const byAliasIndex = this.db.data.submittedItems.findIndex(
-      (item) => item.alias?.trim() === normalized,
+    const statement = this.db.query(
+      "INSERT INTO meals (id, meal_text, pipeline_json, created_at) VALUES (?, ?, ?, ?)",
     );
+    statement.run(meal.id, meal.meal_text, meal.pipeline_json, meal.created_at);
 
-    const index =
-      byAliasIndex >= 0
-        ? byAliasIndex
-        : this.db.data.submittedItems.findIndex((item) => item.barcode === normalized);
+    logger.debug({
+      event: "repository.meal.saved",
+      mealId: meal.id,
+      itemCount: payload.computed.items.length,
+    });
 
-    if (index < 0) {
-      return null;
-    }
-
-    const [deleted] = this.db.data.submittedItems.splice(index, 1);
-    await this.db.write();
-    return deleted ?? null;
+    return this.mapMealRow(meal);
   }
 
-  async findSubmittedItemByAlias(
-    alias: string,
-  ): Promise<{ item: SubmittedItem; index: number } | null> {
-    const normalized = alias.trim();
-    if (!normalized) {
+  async getMeals(): Promise<SavedMeal[]> {
+    const rows = this.db
+      .query("SELECT id, meal_text, pipeline_json, created_at FROM meals ORDER BY created_at ASC")
+      .all() as MealRow[];
+    return rows.map((row) => this.mapMealRow(row));
+  }
+
+  async findMealByText(mealText: string): Promise<SavedMeal | null> {
+    const row = this.db
+      .query(
+        "SELECT id, meal_text, pipeline_json, created_at FROM meals WHERE meal_text = ? LIMIT 1",
+      )
+      .get(mealText) as MealRow | null;
+    if (row === null) {
       return null;
     }
+    return this.mapMealRow(row);
+  }
 
-    const index = this.db.data.submittedItems.findIndex(
-      (item) => item.alias?.trim() === normalized,
+  async saveConsumption(mealId: string): Promise<SavedConsumption> {
+    const consumption = {
+      id: crypto.randomUUID(),
+      meal_id: mealId,
+      consumed_at: new Date().toISOString(),
+    };
+
+    const statement = this.db.query(
+      "INSERT INTO consumption (id, meal_id, consumed_at) VALUES (?, ?, ?)",
     );
-    if (index < 0) {
-      return null;
-    }
+    statement.run(consumption.id, consumption.meal_id, consumption.consumed_at);
 
-    const item = this.db.data.submittedItems[index];
-    if (!item) {
-      return null;
-    }
+    logger.debug({
+      event: "repository.consumption.saved",
+      consumptionId: consumption.id,
+      mealId: consumption.meal_id,
+    });
 
-    return { item, index };
+    const parsed = SavedConsumptionSchema.parse(consumption);
+    return parsed;
   }
 
-  async updateSubmittedItemAtIndex(index: number, entry: SubmittedItem): Promise<void> {
-    if (!Number.isInteger(index) || index < 0 || index >= this.db.data.submittedItems.length) {
-      throw new Error("Invalid submitted item index");
-    }
-
-    this.db.data.submittedItems[index] = entry;
-    await this.db.write();
-  }
-
-  async saveMeal(entry: SavedMeal): Promise<void> {
-    this.db.data.meals.push(entry);
-    await this.db.write();
-  }
-
-  async findMealByName(name: string): Promise<SavedMeal | null> {
-    const normalized = name.trim().toLowerCase();
-    if (!normalized) {
-      return null;
-    }
-
-    return this.db.data.meals.find((meal) => meal.name.trim().toLowerCase() === normalized) ?? null;
-  }
-
-  private async ensureSchema(): Promise<void> {
-    let changed = false;
-
-    if (!this.db.data.messages) {
-      this.db.data.messages = [];
-      changed = true;
-    }
-
-    if (!this.db.data.products) {
-      this.db.data.products = [];
-      changed = true;
-    }
-
-    if (!this.db.data.submittedItems) {
-      this.db.data.submittedItems = [];
-      changed = true;
-    }
-
-    if (!this.db.data.meals) {
-      this.db.data.meals = [];
-      changed = true;
-    }
-
-    if (changed) {
-      await this.db.write();
-    }
+  async getConsumption(): Promise<SavedConsumption[]> {
+    const rows = this.db
+      .query("SELECT id, meal_id, consumed_at FROM consumption ORDER BY consumed_at ASC")
+      .all() as ConsumptionRow[];
+    return rows.map((row) => SavedConsumptionSchema.parse(row));
   }
 }

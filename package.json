@@ -6,6 +6,8 @@
   "scripts": {
     "start": "bun run src/index.ts",
     "dev": "bun --watch src/index.ts",
+    "cli": "bun run src/cli.ts",
+    "worktree:add": "bash scripts/worktree-add.sh",
     "test": "jest",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
@@ -27,9 +29,9 @@
   },
   "dependencies": {
     "axios": "^1.13.5",
-    "grammy": "^1.40.0",
-    "lowdb": "^7.0.1",
+    "effect": "^3.18.4",
+    "grammy": "^1.41.1",
     "winston": "^3.19.0",
-    "zxing-wasm": "^2.2.4"
+    "zod": "^4.1.11"
   }
 }
